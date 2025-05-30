@@ -15,6 +15,9 @@ class GreasePencilDrawing:
             raise KeyError(f"Grease Pencil Layer '{layer_name}' not found.")
 
         frame = layer.current_frame()
+        if frame is None:
+            current_frame_number = bpy.context.scene.frame_current
+            frame = layer.frames.new(current_frame_number)
         self.drawing = frame.drawing
 
     def clear(self):
