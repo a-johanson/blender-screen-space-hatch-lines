@@ -64,7 +64,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
             triangle_data,
             view_projection_matrix,
             camera_position,
-            light_position if hatch_props.is_directional_light else light_direction,
+            light_direction if hatch_props.is_directional_light else light_position,
             hatch_props.is_directional_light,
             hatch_props.orientation_offset,
             width,

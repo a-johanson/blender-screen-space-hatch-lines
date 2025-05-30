@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Screen-Space Hatch Lines",
     "author": "Ane Johanson",
-    "version": (0, 1, 1),
+    "version": (0, 1, 2),
     "blender": (4, 4, 0),
     "location": "View3D > Sidebar > Hatch Lines",
     "description": "Create screen-space hatch lines with Grease Pencil v3",

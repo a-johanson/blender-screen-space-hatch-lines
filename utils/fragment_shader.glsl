@@ -1,6 +1,6 @@
 void main() {
     vec3 normal = normalize(fragNorm);
-    vec3 toLight = isDirectionalLight ? normalize(light - fragPos) : light;
+    vec3 toLight = isDirectionalLight ? light : normalize(light - fragPos);
     float normalAmount = dot(normal, toLight);
 
     vec3 v = normalize(toLight - normalAmount * normal);
