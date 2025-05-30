@@ -7,7 +7,6 @@ The input data for the algorithm is computed via a custom fragment shader.
 ## Installation
 
 1. Download the contents of the repository as a ZIP file (Code > Download ZIP).
-
 2. Install in Blender:
    - Open Blender and go to Edit > Preferences
    - Select the "Add-ons" tab
@@ -16,6 +15,10 @@ The input data for the algorithm is computed via a custom fragment shader.
 ## Usage
 
 The hatch line controls can be found in the Sidebar of the 3D Viewport (press N to toggle) under the "Hatch Lines" tab.
+
+## Limitations
+
+Triangles and quads are the only face types that can be processed by the internal rendering pipeline.
 
 ## Development
 
