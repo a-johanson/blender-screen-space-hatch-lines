@@ -14,8 +14,7 @@ void main() {
     float orientation = atan(dirScreen.y, dirScreen.x);
     orientation = isnan(orientation) ? 0.0f : orientation;
 
-    float depth = length(fragPos - cameraPosition);
     float value = max(normalAmount, 0.0f);
 
-    fragColor = vec4(depth, orientation, value, 1.0f);
+    fragColor = vec2(orientation, value);
 }

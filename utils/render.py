@@ -23,7 +23,6 @@ class BlenderShaderRenderer:
             fragment_source=__class__._read_file("fragment_shader.glsl"),
             constants=[
                 ShaderAttribute("MAT4", "viewProjectionMatrix"),
-                ShaderAttribute("VEC3", "cameraPosition"),
                 ShaderAttribute("VEC3", "light"),
                 ShaderAttribute("BOOL", "isDirectionalLight"),
                 ShaderAttribute("FLOAT", "orientationOffset"),
@@ -39,7 +38,7 @@ class BlenderShaderRenderer:
                 ShaderAttribute("VEC3", "fragNorm"),
             ],
             fragment_out=[
-                ShaderAttribute("VEC4", "fragColor"),
+                ShaderAttribute("VEC2", "fragColor"),
             ]
         )
 
@@ -158,7 +157,7 @@ class BlenderShaderRenderer:
             self,
             triangles: MeshTriangles,
             view_projection_matrix: Matrix,
-            camera_position: Vector,
+            camera_clip_range: tuple[float, float],
             light: Vector,
             is_directional_light: bool,
             orientation_offset: float,
@@ -168,22 +167,33 @@ class BlenderShaderRenderer:
         batch = __class__._prepare_batch(triangles)
         depth_texture = gpu.types.GPUTexture(size=(width, height), format="DEPTH_COMPONENT32F")
         depth_texture.clear(format="FLOAT", value=(1.0,))
-        color_texture = gpu.types.GPUTexture(size=(width, height), format="RGBA32F")
-        color_texture.clear(format="FLOAT", value=(-1.0, 0.0, 0.0, 1.0))
+        color_texture = gpu.types.GPUTexture(size=(width, height), format="RG32F")
+        color_texture.clear(format="FLOAT", value=(0.0, 0.0))
         fb = gpu.types.GPUFrameBuffer(depth_slot=depth_texture, color_slots=color_texture)
         with fb.bind():
             self.shader.uniform_float("viewProjectionMatrix", view_projection_matrix)
-            self.shader.uniform_float("cameraPosition", camera_position)
             self.shader.uniform_float("light", light)
             self.shader.uniform_bool("isDirectionalLight", is_directional_light)
             self.shader.uniform_float("orientationOffset", orientation_offset)
             __class__._set_gpu_state()
             batch.draw(self.shader)
             __class__._reset_gpu_state()
+
+            # Read depth texture and linearize values
+            buffer = depth_texture.read()
+            buffer.dimensions = width * height
+            near = camera_clip_range[0]
+            far = camera_clip_range[1]
+            near_times_far = near * far
+            far_minus_near = far - near
+            depth_values = [near_times_far / (far - d * far_minus_near) if d < 1.0 else -1.0 for d in buffer]
+
+            # Read color texture and extract orientation and value
             buffer = color_texture.read()
-            buffer.dimensions = width * height * 4
-            buffer_values = [v for v in buffer]
+            buffer.dimensions = width * height * 2
+            color_values = [v for v in buffer]
+
         depth_orientation_value_pixels = [
-            tuple(buffer_values[i:i+3]) for i in range(0, len(buffer_values), 4)
+            (depth, orientation, value) for depth, orientation, value in zip(depth_values, color_values[::2], color_values[1::2])
         ]
         return depth_orientation_value_pixels

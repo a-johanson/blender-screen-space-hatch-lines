@@ -37,12 +37,15 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         view_projection_matrix = projection_matrix @ view_matrix
         camera_rotation = scene.camera_rotation_matrix()
         camera_position = scene.camera_position()
+        camera_clip_range = scene.camera_near_far_clip()
         light_position = scene.light_position()
         light_direction = scene.light_direction()
         print("View matrix:", view_matrix)
         print("Projection matrix:", projection_matrix)
         print("View-projection matrix:", view_projection_matrix)
+        print("Camera rotation matrix:", camera_rotation)
         print("Camera position:", camera_position)
+        print(f"Camera clip range: {camera_clip_range[0]} to {camera_clip_range[1]}")
         print("Light position:", light_position)
         print("Light direction:", light_direction)
 
@@ -60,10 +63,10 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame origin:", frame_origin)
 
         renderer = BlenderShaderRenderer()
-        pixels_orientation_depth_value = renderer.render_depth_orientation_value(
+        pixels_depth_orientation_value = renderer.render_depth_orientation_value(
             triangle_data,
             view_projection_matrix,
-            camera_position,
+            camera_clip_range,
             light_direction if hatch_props.is_directional_light else light_position,
             hatch_props.is_directional_light,
             hatch_props.orientation_offset,
@@ -71,7 +74,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
             height
         )
 
-        grid = DepthDirectionValueGrid(width, height, pixels_orientation_depth_value)
+        grid = DepthDirectionValueGrid(width, height, pixels_depth_orientation_value)
 
         streamlines = flow_field_streamlines(
             grid,

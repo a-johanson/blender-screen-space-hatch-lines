@@ -41,6 +41,10 @@ class BlenderScene:
     def camera_position(self) -> Vector:
         return self.camera.matrix_world.to_translation()
 
+    def camera_near_far_clip(self) -> tuple[float, float]:
+        camera_data = self.camera.data
+        return camera_data.clip_start, camera_data.clip_end
+
     def light_position(self) -> Vector:
         return self.light.matrix_world.to_translation()
 
