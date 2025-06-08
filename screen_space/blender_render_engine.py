@@ -165,8 +165,8 @@ class BlenderRenderEngine:
         self._backup_render_passes()
 
         z = self._render_pass_pixels("Depth")[:, :, :1]
-        threshold = far_clip_tolerance * camera_far_clip
-        coverage = (np.abs(z - camera_far_clip) >= threshold).astype(np.float32)
+        z_threshold = camera_far_clip * (1.0 - far_clip_tolerance)
+        coverage = (z < z_threshold).astype(np.float32)
         print("Coverage shape:", coverage.shape)
         z = z * coverage
         print("Z shape:", z.shape)
