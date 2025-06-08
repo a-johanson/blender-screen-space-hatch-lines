@@ -7,7 +7,11 @@ import numpy as np
 
 
 class BlenderRenderEngine:
-    def __init__(self):
+    def __init__(self, target_gp_obj: bpy.types.Object, far_clip_tolerance: float = 0.001, finite_difference_offset: float = 0.001):
+        self.target_gp_obj = target_gp_obj
+        self.far_clip_tolerance = far_clip_tolerance
+        self.finite_difference_offset = finite_difference_offset
+
         bpy.context.scene.use_nodes = True
         compositor_tree = bpy.context.scene.node_tree
         self.compositor_links = compositor_tree.links
@@ -15,6 +19,7 @@ class BlenderRenderEngine:
         self.render_layers = None
         self.viewer_node = None
         self.composite_node = None
+
         self.backup_use_combined = True
         self.backup_use_z = False
         self.backup_use_normal = False
@@ -132,9 +137,7 @@ class BlenderRenderEngine:
             clip_luminance: bool = False,
             normalize_luminance: bool = False,
             orientation_offset: float = 0.0,
-            camera_far_clip: float = 1.0,
-            far_clip_tolerance: float = 0.001,
-            finite_difference_offset: float = 0.001
+            camera_far_clip: float = 1.0
         ) -> np.ndarray:
         """
         Render a scene and extract coverage, luminance, depth, and direction information.
@@ -151,8 +154,6 @@ class BlenderRenderEngine:
             normalize_luminance (bool, optional): Whether to normalize luminance values. Defaults to False.
             orientation_offset (float, optional): Angular offset for orientation calculation in radians. Defaults to 0.0.
             camera_far_clip (float, optional): Camera's far clip distance. Defaults to 1.0.
-            far_clip_tolerance (float, optional): Tolerance for far clip comparison. Defaults to 0.001.
-            finite_difference_offset (float, optional): Offset for finite difference approximation. Defaults to 0.001.
 
         Returns:
             np.ndarray: A 5-channel array with shape (height, width, 5) containing:
@@ -163,9 +164,11 @@ class BlenderRenderEngine:
                 - Channel 4: Sine of orientation angle
         """
         self._backup_render_passes()
+        target_gp_hide_render = self.target_gp_obj.hide_render
+        self.target_gp_obj.hide_render = True
 
         z = self._render_pass_pixels("Depth")[:, :, :1]
-        z_threshold = camera_far_clip * (1.0 - far_clip_tolerance)
+        z_threshold = camera_far_clip * (1.0 - self.far_clip_tolerance)
         coverage = (z < z_threshold).astype(np.float32)
         print("Coverage shape:", coverage.shape)
         z = z * coverage
@@ -216,8 +219,8 @@ class BlenderRenderEngine:
         direction_world = u * cos_offset + v * sin_offset
 
         # Project points slightly offset along world_direction to normalized device coordinates
-        pos_p = position + direction_world * finite_difference_offset
-        pos_m = position - direction_world * finite_difference_offset
+        pos_p = position + direction_world * self.finite_difference_offset
+        pos_m = position - direction_world * self.finite_difference_offset
 
         # Apply view-projection matrix to homogeneous coordinates
         ones = np.ones((height, width, 1))
@@ -246,4 +249,5 @@ class BlenderRenderEngine:
         print("Orientation shape:", orientation.shape)
 
         self._restore_render_passes()
+        self.target_gp_obj.hide_render = target_gp_hide_render
         return np.concatenate((coverage, luminance, z, np.cos(orientation), np.sin(orientation)), axis=-1)
