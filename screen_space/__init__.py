@@ -1,3 +1,4 @@
+from .blender_render_engine import BlenderRenderEngine
 from .grease_pencil import GreasePencilDrawing
 from .grid import DepthDirectionValueGrid
 from .scene import MeshTriangles, BlenderScene
