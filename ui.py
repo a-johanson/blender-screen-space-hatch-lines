@@ -1,6 +1,8 @@
 import bpy
 from bpy.props import FloatProperty, IntProperty, BoolProperty, PointerProperty, EnumProperty
 
+# TODO: add drop down for render engine selection
+
 
 def get_gp_layers(props, _context):
     items = []
@@ -16,6 +18,16 @@ def get_gp_layers(props, _context):
 
 
 class HatchLineProperties(bpy.types.PropertyGroup):
+    render_engine: EnumProperty(
+        name="Render Engine",
+        description="Select which rendering engine to use",
+        items=[
+            ("BLENDER", "Blender", "Use Blender's render engine"),
+            ("SHADER", "GLSL Shader", "Use shader-based rendering")
+        ],
+        default="SHADER"
+    )
+
     rng_seed: IntProperty(
         name="RNG Seed",
         description="Seed value for placing seed points",
@@ -106,8 +118,8 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     input_light: PointerProperty(
         type=bpy.types.Object,
         name="Input Empty (Lighting)",
-        description="Empty object to use as input for lighting",
-        poll=lambda _props, obj: obj.type == "EMPTY"
+        description="Empty or Light object to use as input for lighting",
+        poll=lambda _props, obj: obj.type in ["EMPTY", "LIGHT"]
     )
 
     is_directional_light: BoolProperty(
@@ -143,6 +155,18 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         default=0.0004,
         min=0.00001,
         max=0.1
+    )
+
+    clip_luminance: BoolProperty(
+        name="Clip Luminance",
+        description="Clip luminance values to the range [0, 1]",
+        default=False
+    )
+
+    normalize_luminance: BoolProperty(
+        name="Normalize Luminance",
+        description="Normalize luminance values to the range [0, 1]",
+        default=False
     )
 
 
@@ -196,6 +220,14 @@ class HATCH_PT_panel(bpy.types.Panel):
                 box.label(text="No layers found in this Grease Pencil", icon="ERROR")
 
         box.prop(hatch_props, "gp_stroke_radius")
+
+        box = layout.box()
+        box.label(text="Render Engine:")
+        box.prop(hatch_props, "render_engine", text="")
+        if hatch_props.render_engine == "BLENDER":
+            box.label(text="Warning: Will overwrite compositor nodes.", icon="ERROR")
+            box.prop(hatch_props, "clip_luminance")
+            box.prop(hatch_props, "normalize_luminance")
 
         layout.separator()
         layout.operator("hatch.create_lines", text="Create Hatch Lines")

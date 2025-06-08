@@ -28,13 +28,13 @@ class HATCH_OT_dev_reload(bpy.types.Operator):
     bl_idname = "hatch.dev_reload"
     bl_label = "Dev: Reload Addon"
     bl_options = {"REGISTER", "INTERNAL"}
-    
+
     def execute(self, _context):
         # Reload modules
         importlib.reload(ui)
         importlib.reload(operators)
         importlib.reload(screen_space)
-        
+
         # Re-register everything
         try:
             unregister()
@@ -43,7 +43,7 @@ class HATCH_OT_dev_reload(bpy.types.Operator):
         except Exception as e:
             self.report({"ERROR"}, f"Reload error: {str(e)}")
             register()
-            
+
         return {"FINISHED"}
 
 def register():

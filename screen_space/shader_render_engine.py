@@ -165,12 +165,12 @@ class ShaderRenderEngine:
             height: int
         ) -> np.ndarray:
         """Renders mesh triangles to produce coverage, luminance, depth, and direction data.
-        
+
         This method renders the provided mesh triangles using GPU acceleration to produce
         several data channels needed for screen-space algorithms. It sets up a framebuffer
         with depth and color textures, renders the mesh, and processes the rendered data
         to extract various properties from the scene.
-        
+
         Args:
             triangles: The mesh triangle data to render.
             view_projection_matrix: Combined view and projection matrix for the camera.
@@ -180,7 +180,7 @@ class ShaderRenderEngine:
             orientation_offset: Angular offset applied to the orientation values.
             width: Width of the output in pixels.
             height: Height of the output in pixels.
-            
+
         Returns:
             A numpy array with shape (height, width, 5) containing:
             - Channel 0: Coverage (1.0 where geometry is present, 0.0 elsewhere)
