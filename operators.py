@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .screen_space import BlenderScene, BlenderShaderRenderer, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
+from .screen_space import BlenderScene, ShaderRenderEngine, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
@@ -62,7 +62,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        renderer = BlenderShaderRenderer()
+        renderer = ShaderRenderEngine()
         pixels_depth_orientation_value = renderer.render_depth_orientation_value(
             triangle_data,
             view_projection_matrix,

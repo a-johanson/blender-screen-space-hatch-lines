@@ -15,7 +15,7 @@ class ShaderAttribute:
     data_type: str
     name: str
 
-class BlenderShaderRenderer:
+class ShaderRenderEngine:
     def __init__(self):
         self.shader = __class__._shader_setup(
             name="main_br_shader",
