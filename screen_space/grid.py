@@ -2,30 +2,25 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 import math
 
+import numpy as np
+
 
 @dataclass
 class GridValue:
-    coverage_value: float # in [0, 1], where 1 means fully covered
+    coverage: float # in [0, 1], where 1 means fully covered
+    luminance: float
     depth: float
     direction: tuple[float, float]  # (cos, sin) of the orientation angle
-    value: float
 
     def is_covered(self) -> bool:
-        return self.coverage_value > 0.9
+        return self.coverage > 0.9
 
-class DepthDirectionValueGrid:
-    def __init__(self, width: int, height: int, pixels_depth_orientation_value: Sequence[tuple[float, float, float]]):
-        assert len(pixels_depth_orientation_value) == width * height, "The number of pixels must match the width and height dimensions"
-        self.width = width
-        self.height = height
-        self.pixels_coverage_depth_direction_value = [
-            (coverage := (1.0 if t[0] > 0.0 else 0.0), 
-            coverage * t[0],
-            coverage * math.cos(t[1]), 
-            coverage * math.sin(t[1]), 
-            coverage * t[2])
-            for t in pixels_depth_orientation_value
-        ]
+class PixelDataGrid:
+    def __init__(self, pixels: np.ndarray):
+        assert pixels.ndim == 3 and pixels.shape[2] == 5, "pixels must have shape (height, width, 5) for coverage, luminance, depth, cos(orientation), sin(orientation)"
+        self.width = pixels.shape[1]
+        self.height = pixels.shape[0]
+        self.pixels = pixels.reshape(-1, 5).tolist()
 
     def grid_value(self, x: int, y: int) -> GridValue:
         x = max(x, 0.0)
@@ -49,19 +44,19 @@ class DepthDirectionValueGrid:
         w_10 = y_frac * x_frac_ai
         w_11 = y_frac * x_frac
 
-        v_00 = self.pixels_coverage_depth_direction_value[idx_00]
-        v_01 = self.pixels_coverage_depth_direction_value[idx_01]
-        v_10 = self.pixels_coverage_depth_direction_value[idx_10]
-        v_11 = self.pixels_coverage_depth_direction_value[idx_11]
+        v_00 = self.pixels[idx_00]
+        v_01 = self.pixels[idx_01]
+        v_10 = self.pixels[idx_10]
+        v_11 = self.pixels[idx_11]
 
         coverage = w_00 * v_00[0] + w_01 * v_01[0] + w_10 * v_10[0] + w_11 * v_11[0]
         if coverage < EPS:
-            return GridValue(0.0, 0.0, (1.0, 0.0), 0.0)
+            return GridValue(0.0, 0.0, 0.0, (1.0, 0.0))
         coverage_inv = 1.0 / coverage
-        depth = (w_00 * v_00[1] + w_01 * v_01[1] + w_10 * v_10[1] + w_11 * v_11[1]) * coverage_inv
-        direction_cos = (w_00 * v_00[2] + w_01 * v_01[2] + w_10 * v_10[2] + w_11 * v_11[2])
-        direction_sin = (w_00 * v_00[3] + w_01 * v_01[3] + w_10 * v_10[3] + w_11 * v_11[3])
+        luminance = (w_00 * v_00[1] + w_01 * v_01[1] + w_10 * v_10[1] + w_11 * v_11[1]) * coverage_inv
+        depth = (w_00 * v_00[2] + w_01 * v_01[2] + w_10 * v_10[2] + w_11 * v_11[2]) * coverage_inv
+        direction_cos = (w_00 * v_00[3] + w_01 * v_01[3] + w_10 * v_10[3] + w_11 * v_11[3])
+        direction_sin = (w_00 * v_00[4] + w_01 * v_01[4] + w_10 * v_10[4] + w_11 * v_11[4])
         direction_mag = math.sqrt(direction_cos * direction_cos + direction_sin * direction_sin)
         direction = (direction_cos / direction_mag, direction_sin / direction_mag) if direction_mag > EPS else (1.0, 0.0)
-        value = (w_00 * v_00[4] + w_01 * v_01[4] + w_10 * v_10[4] + w_11 * v_11[4]) * coverage_inv
-        return GridValue(coverage, depth, direction, value)
+        return GridValue(coverage, luminance, depth, direction)

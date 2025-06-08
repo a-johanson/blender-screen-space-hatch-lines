@@ -153,7 +153,7 @@ class ShaderRenderEngine:
         rgb_pixels = pixels.reshape((height, width, 4))[:, :, :3]
         return rgb_pixels
 
-    def render_depth_orientation_value(
+    def render_coverage_luminance_depth_direction(
             self,
             triangles: MeshTriangles,
             view_projection_matrix: Matrix,
@@ -163,7 +163,32 @@ class ShaderRenderEngine:
             orientation_offset: float,
             width: int,
             height: int
-        ) -> Sequence[tuple[float, float, float]]:
+        ) -> np.ndarray:
+        """Renders mesh triangles to produce coverage, luminance, depth, and direction data.
+        
+        This method renders the provided mesh triangles using GPU acceleration to produce
+        several data channels needed for screen-space algorithms. It sets up a framebuffer
+        with depth and color textures, renders the mesh, and processes the rendered data
+        to extract various properties from the scene.
+        
+        Args:
+            triangles: The mesh triangle data to render.
+            view_projection_matrix: Combined view and projection matrix for the camera.
+            camera_clip_range: Tuple of (near, far) clipping distances.
+            light: Position or direction of the light.
+            is_directional_light: Whether the light is directional (True) or positional (False).
+            orientation_offset: Angular offset applied to the orientation values.
+            width: Width of the output in pixels.
+            height: Height of the output in pixels.
+            
+        Returns:
+            A numpy array with shape (height, width, 5) containing:
+            - Channel 0: Coverage (1.0 where geometry is present, 0.0 elsewhere)
+            - Channel 1: Luminance values
+            - Channel 2: Linearized depth values
+            - Channel 3: Cosine of orientation angles
+            - Channel 4: Sine of orientation angles
+        """
         batch = __class__._prepare_batch(triangles)
         depth_texture = gpu.types.GPUTexture(size=(width, height), format="DEPTH_COMPONENT32F")
         depth_texture.clear(format="FLOAT", value=(1.0,))
@@ -184,16 +209,14 @@ class ShaderRenderEngine:
             buffer.dimensions = width * height
             near = camera_clip_range[0]
             far = camera_clip_range[1]
-            near_times_far = near * far
-            far_minus_near = far - near
-            depth_values = [near_times_far / (far - d * far_minus_near) if d < 1.0 else -1.0 for d in buffer]
+            depth = np.array(buffer, dtype=np.float32).reshape(height, width, 1)
+            coverage = np.where(depth < 1.0, 1.0, 0.0)
+            depth = ((near * far) / (far - depth * (far - near))) * coverage
 
-            # Read color texture and extract orientation and value
+            # Read color texture and extract luminance and orientation
             buffer = color_texture.read()
             buffer.dimensions = width * height * 2
-            color_values = [v for v in buffer]
-
-        depth_orientation_value_pixels = [
-            (depth, orientation, value) for depth, orientation, value in zip(depth_values, color_values[::2], color_values[1::2])
-        ]
-        return depth_orientation_value_pixels
+            luminance_orientation = np.array(buffer, dtype=np.float32).reshape(height, width, 2)
+            luminance = luminance_orientation[:, :, :1] * coverage
+            orientation = luminance_orientation[:, :, 1:] * coverage
+        return np.concatenate((coverage, luminance, depth, np.cos(orientation), np.sin(orientation)), axis=-1)

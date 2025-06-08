@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .screen_space import BlenderScene, ShaderRenderEngine, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
+from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
@@ -21,9 +21,9 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Creating hatch lines...")
         scene = BlenderScene(hatch_props.input_light)
 
-        triangle_data = scene.world_triangle_data()
-        print("Vertex count:", len(triangle_data.vertices))
-        print("Normal count:", len(triangle_data.normals))
+        # triangle_data = scene.world_triangle_data()
+        # print("Vertex count:", len(triangle_data.vertices))
+        # print("Normal count:", len(triangle_data.normals))
 
         width, height = scene.render_resolution()
         aspect_ratio = width / height
@@ -62,19 +62,39 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        renderer = ShaderRenderEngine()
-        pixels_depth_orientation_value = renderer.render_depth_orientation_value(
-            triangle_data,
+        # renderer = ShaderRenderEngine()
+        # pixels = renderer.render_coverage_luminance_depth_direction(
+        #     triangle_data,
+        #     view_projection_matrix,
+        #     camera_clip_range,
+        #     light_direction if hatch_props.is_directional_light else light_position,
+        #     hatch_props.is_directional_light,
+        #     hatch_props.orientation_offset,
+        #     width,
+        #     height
+        # )
+        renderer = BlenderRenderEngine()
+        renderer.initialize_compositor()
+        pixels = renderer.render_coverage_luminance_depth_direction(
             view_projection_matrix,
-            camera_clip_range,
             light_direction if hatch_props.is_directional_light else light_position,
             hatch_props.is_directional_light,
-            hatch_props.orientation_offset,
-            width,
-            height
+            clip_luminance = False,
+            normalize_luminance = False,
+            orientation_offset = 0.0,
+            camera_far_clip = camera_clip_range[1],
+            far_clip_tolerance = 0.001,
+            finite_difference_offset = 0.001
         )
+        print("Pixels shape:", pixels.shape)
+        print("Coverage range:", pixels[:, :, 0].min(), pixels[:, :, 0].max())
+        print("L range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
+        print("Z range:", pixels[:, :, 2].min(), pixels[:, :, 2].max())
+        print("Direction cos range:", pixels[:, :, 3].min(), pixels[:, :, 3].max())
+        print("Direction sin range:", pixels[:, :, 4].min(), pixels[:, :, 4].max())
 
-        grid = DepthDirectionValueGrid(width, height, pixels_depth_orientation_value)
+
+        grid = PixelDataGrid(pixels)
 
         streamlines = flow_field_streamlines(
             grid,
