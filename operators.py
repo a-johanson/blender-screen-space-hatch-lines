@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .utils import BlenderScene, BlenderShaderRenderer, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
+from .screen_space import BlenderScene, BlenderShaderRenderer, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
