@@ -150,9 +150,9 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     gp_stroke_radius: FloatProperty(
         name="Stroke Radius",
         description="Radius of the grease pencil strokes",
-        default=0.0004,
-        min=0.00001,
-        max=0.1
+        default=0.0005,
+        min=0.0005,
+        max=0.05
     )
 
     clip_luminance: BoolProperty(
