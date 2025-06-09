@@ -62,7 +62,6 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        pixels = None
         if hatch_props.render_engine == "SHADER":
             renderer = ShaderRenderEngine()
             pixels = renderer.render_coverage_luminance_depth_direction(
