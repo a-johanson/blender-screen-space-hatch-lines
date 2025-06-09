@@ -46,7 +46,7 @@ class PixelDataGrid:
             (1.0 - y_frac) * x_frac,          # w_01
             y_frac * (1.0 - x_frac),          # w_10
             y_frac * x_frac                   # w_11
-        ])[:, np.newaxis]
+        ], dtype=np.float32)[:, np.newaxis]
 
         values = self.pixels[[idx_00, idx_01, idx_10, idx_11]]
 
