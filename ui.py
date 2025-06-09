@@ -1,8 +1,6 @@
 import bpy
 from bpy.props import FloatProperty, IntProperty, BoolProperty, PointerProperty, EnumProperty
 
-# TODO: add drop down for render engine selection
-
 
 def get_gp_layers(props, _context):
     items = []
