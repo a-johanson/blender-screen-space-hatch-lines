@@ -21,10 +21,6 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Creating hatch lines...")
         scene = BlenderScene(hatch_props.input_light)
 
-        # triangle_data = scene.world_triangle_data()
-        # print("Vertex count:", len(triangle_data.vertices))
-        # print("Normal count:", len(triangle_data.normals))
-
         width, height = scene.render_resolution()
         aspect_ratio = width / height
         aspect_ratio_inverse = height / width
@@ -64,6 +60,9 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
         if hatch_props.render_engine == "SHADER":
             renderer = ShaderRenderEngine()
+            triangle_data = scene.world_triangle_data()
+            print("Vertex count:", len(triangle_data.vertices))
+            print("Normal count:", len(triangle_data.normals))
             pixels = renderer.render_coverage_luminance_depth_direction(
                 triangle_data,
                 view_projection_matrix,
@@ -87,11 +86,8 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                 camera_far_clip = camera_clip_range[1]
             )
 
-        print("Coverage range:", pixels[:, :, 0].min(), pixels[:, :, 0].max())
-        print("L range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
+        print("Luminance range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
         print("Z range:", pixels[:, :, 2].min(), pixels[:, :, 2].max())
-        print("Direction cos range:", pixels[:, :, 3].min(), pixels[:, :, 3].max())
-        print("Direction sin range:", pixels[:, :, 4].min(), pixels[:, :, 4].max())
 
         grid = PixelDataGrid(pixels)
 

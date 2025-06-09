@@ -170,9 +170,7 @@ class BlenderRenderEngine:
         z = self._render_pass_pixels("Depth")[:, :, :1]
         z_threshold = camera_far_clip * (1.0 - self.far_clip_tolerance)
         coverage = (z < z_threshold).astype(np.float32)
-        print("Coverage shape:", coverage.shape)
         z = z * coverage
-        print("Z shape:", z.shape)
 
         rgb = self._render_pass_pixels("Image")
         luminance = (
@@ -188,10 +186,9 @@ class BlenderRenderEngine:
             if np.any(covered):
                 min_lum = luminance[covered].min()
                 max_lum = luminance[covered].max()
-                print(f"Min luminance: {min_lum}, Max luminance: {max_lum}")
+                print(f"Luminance range before normalization: [{min_lum}, {max_lum}]")
                 if max_lum > min_lum:
                     luminance[covered] = (luminance[covered] - min_lum) / (max_lum - min_lum)
-        print("Luminance shape:", luminance.shape)
 
         normal = self._render_pass_pixels("Normal")
         position = self._render_pass_pixels("Position")
@@ -231,22 +228,16 @@ class BlenderRenderEngine:
         # Matrix multiplication with einsum
         pp_clip = np.einsum("ijk,kl->ijl", pos_p_h, vp_matrix_t)
         pm_clip = np.einsum("ijk,kl->ijl", pos_m_h, vp_matrix_t)
-        print("pp_clip shape:", pp_clip.shape)
-        print("pm_clip shape:", pm_clip.shape)
 
         pp_ndc = pp_clip[:, :, :2] / pp_clip[:, :, 3:4]
         pm_ndc = pm_clip[:, :, :2] / pm_clip[:, :, 3:4]
-        print("pp_ndc shape:", pp_ndc.shape)
-        print("pm_ndc shape:", pm_ndc.shape)
 
         # Screen-space direction
         direction_ndc = pp_ndc - pm_ndc
-        print("direction_ndc shape:", direction_ndc.shape)
 
         # Orientation angle
         orientation = np.arctan2(direction_ndc[:, :, 1], direction_ndc[:, :, 0])[..., np.newaxis] * coverage
         orientation = np.nan_to_num(orientation, nan=0.0, posinf=0.0, neginf=0.0)
-        print("Orientation shape:", orientation.shape)
 
         self._restore_render_passes()
         self.target_gp_obj.hide_render = target_gp_hide_render
