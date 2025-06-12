@@ -155,6 +155,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=0.05
     )
 
+    gp_stroke_distance: FloatProperty(
+        name="Stroke Distance",
+        description="Distance from the camera at which the grease pencil strokes are drawn",
+        default=1.0,
+        min=0.5,
+        max=10.0
+    )
+
     clip_luminance: BoolProperty(
         name="Clip Luminance",
         description="Clip luminance values to the range [0, 1]",
@@ -218,6 +226,7 @@ class HATCH_PT_panel(bpy.types.Panel):
                 box.label(text="No layers found in this Grease Pencil", icon="ERROR")
 
         box.prop(hatch_props, "gp_stroke_radius")
+        box.prop(hatch_props, "gp_stroke_distance")
 
         box = layout.box()
         box.label(text="Render Engine:")

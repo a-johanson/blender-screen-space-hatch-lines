@@ -45,11 +45,11 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Light position:", light_position)
         print("Light direction:", light_direction)
 
-        frame_center = camera_position + (camera_rotation @ Vector((0.0, 0.0, -1.0)))
+        frame_center = camera_position + (camera_rotation @ Vector((0.0, 0.0, -hatch_props.gp_stroke_distance)))
         frame_dir_x = camera_rotation @ Vector((1.0, 0.0, 0.0))
         frame_dir_y = camera_rotation @ Vector((0.0, 1.0, 0.0))
-        frame_x_axis = ratio_sensor_size_to_focal_length * min(aspect_ratio, 1.0) * frame_dir_x
-        frame_y_axis = ratio_sensor_size_to_focal_length * min(aspect_ratio_inverse, 1.0) * frame_dir_y
+        frame_x_axis = ratio_sensor_size_to_focal_length * hatch_props.gp_stroke_distance * min(aspect_ratio, 1.0) * frame_dir_x
+        frame_y_axis = ratio_sensor_size_to_focal_length * hatch_props.gp_stroke_distance * min(aspect_ratio_inverse, 1.0) * frame_dir_y
         frame_origin = frame_center - (0.5 - 0.5/width) * frame_x_axis - (0.5 - 0.5/height) * frame_y_axis
         print("Frame center:", frame_center)
         print("Frame direction X:", frame_dir_x)
