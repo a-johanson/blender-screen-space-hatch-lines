@@ -163,6 +163,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=10.0
     )
 
+    line_simplification_error: FloatProperty(
+        name="Max. Line Simplification Error",
+        description="Maximum error allowed when simplifying hatch lines",
+        default=0.01,
+        min=0.0001,
+        max=10.0
+    )
+
     clip_luminance: BoolProperty(
         name="Clip Luminance",
         description="Clip luminance values to the range [0, 1]",
@@ -227,6 +235,7 @@ class HATCH_PT_panel(bpy.types.Panel):
 
         box.prop(hatch_props, "gp_stroke_radius")
         box.prop(hatch_props, "gp_stroke_distance")
+        box.prop(hatch_props, "line_simplification_error")
 
         box = layout.box()
         box.label(text="Render Engine:")

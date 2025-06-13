@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
+from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes, visvalingam_whyatt
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
@@ -106,6 +106,12 @@ class HATCH_OT_create_lines(bpy.types.Operator):
             min_steps=hatch_props.min_steps
         )
 
+        print("Number of streamlines generated:", len(streamlines))
+        print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
+        max_line_simplification_error = hatch_props.line_simplification_error * hatch_props.gp_stroke_distance * hatch_props.gp_stroke_distance
+        streamlines = [visvalingam_whyatt(sl, max_area=max_line_simplification_error) for sl in streamlines]
+        print("Number of points in the streamlines after simplification:", sum(len(sl) for sl in streamlines))
+
         strokes = streamlines_to_strokes(
             width,
             height,
@@ -115,6 +121,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
             streamlines
         )
         print("Number of strokes to generate:", len(strokes))
+        print("Number of points in the strokes:", sum(stroke.shape[0] for stroke in strokes))
 
         gp_drawing = GreasePencilDrawing(hatch_props.target_gp, hatch_props.target_gp_layer)
         gp_drawing.clear()
