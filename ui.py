@@ -164,7 +164,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     line_simplification_error: FloatProperty(
-        name="Max. Line Simplification Error",
+        name="Max. Line Simplification Error [px^2]",
         description="Maximum error allowed when simplifying hatch lines",
         default=0.02,
         min=0.0001,
