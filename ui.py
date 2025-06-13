@@ -115,7 +115,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
 
     input_light: PointerProperty(
         type=bpy.types.Object,
-        name="Input Empty (Lighting)",
+        name="Empty or Light",
         description="Empty or Light object to use as input for lighting",
         poll=lambda _props, obj: obj.type in ["EMPTY", "LIGHT"]
     )
@@ -132,6 +132,20 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         default=0.0,
         min=-1.57079632679,
         max=1.57079632679 
+    )
+
+    crosshatching_enabled: BoolProperty(
+        name="Enable Crosshatching",
+        description="Add a second set of hatch lines crossing the primary set",
+        default=False
+    )
+
+    crossing_orientation_offset: FloatProperty(
+        name="Crossing Lines Offset [rad]",
+        description="Additional orientation offset for the crossing hatch lines",
+        default=0.78539816339,
+        min=-0.78539816339,
+        max=0.78539816339
     )
 
     target_gp: PointerProperty(
@@ -222,6 +236,9 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.prop(hatch_props, "input_light")
         box.prop(hatch_props, "is_directional_light")
         box.prop(hatch_props, "orientation_offset")
+        box.prop(hatch_props, "crosshatching_enabled")
+        if hatch_props.crosshatching_enabled:
+            box.prop(hatch_props, "crossing_orientation_offset")
 
         box = layout.box()
         box.label(text="Target Grease Pencil:")
