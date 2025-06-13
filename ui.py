@@ -208,6 +208,7 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.prop(hatch_props, "shadow_gamma")
         box.prop(hatch_props, "d_test_factor")
         box.prop(hatch_props, "d_step")
+        box.prop(hatch_props, "line_simplification_error")
 
         box = layout.box()
         box.label(text="Line Constraints:")
@@ -235,7 +236,6 @@ class HATCH_PT_panel(bpy.types.Panel):
 
         box.prop(hatch_props, "gp_stroke_radius")
         box.prop(hatch_props, "gp_stroke_distance")
-        box.prop(hatch_props, "line_simplification_error")
 
         box = layout.box()
         box.label(text="Render Engine:")
