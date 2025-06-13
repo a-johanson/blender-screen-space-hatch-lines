@@ -108,8 +108,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
         print("Number of streamlines generated:", len(streamlines))
         print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
-        max_line_simplification_error = hatch_props.line_simplification_error * hatch_props.gp_stroke_distance * hatch_props.gp_stroke_distance
-        streamlines = [visvalingam_whyatt(sl, max_area=max_line_simplification_error) for sl in streamlines]
+        streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error) for sl in streamlines]
         print("Number of points in the streamlines after simplification:", sum(len(sl) for sl in streamlines))
 
         strokes = streamlines_to_strokes(
