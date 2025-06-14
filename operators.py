@@ -58,13 +58,16 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        orientation_offsets = [hatch_props.orientation_offset]
+        hatching_settings = [(hatch_props.orientation_offset, hatch_props.max_hatched_luminance)]
         if hatch_props.crosshatching_enabled:
-            orientation_offsets.append(hatch_props.orientation_offset + hatch_props.crossing_orientation_offset)
+            hatching_settings.append((
+                hatch_props.orientation_offset + hatch_props.crossing_orientation_offset,
+                hatch_props.max_crosshatched_luminance
+            ))
 
         strokes = []
 
-        for orientation_offset in orientation_offsets:
+        for orientation_offset, max_hatched_luminance in hatching_settings:
             print(f"Hatching pass for orientation offset: {orientation_offset:.5f} rad")
             if hatch_props.render_engine == "SHADER":
                 renderer = ShaderRenderEngine()
@@ -110,6 +113,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                 d_step=hatch_props.d_step,
                 max_depth_step=hatch_props.max_depth_step,
                 max_accum_angle=hatch_props.max_accum_angle,
+                max_hatched_luminance=max_hatched_luminance,
                 max_steps=hatch_props.max_steps,
                 min_steps=hatch_props.min_steps
             )

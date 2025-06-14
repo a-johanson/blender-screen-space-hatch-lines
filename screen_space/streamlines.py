@@ -89,11 +89,12 @@ def flow_field_streamline(
     d_step: float,
     max_depth_step: float,
     max_accum_angle: float,
+    max_hatched_luminance: float,
     max_steps: int,
     min_steps: int,
 ) -> list[tuple[float, float]] | None:
     gv_start = grid.grid_value(p_start[0], p_start[1])
-    if gv_start is None or not gv_start.is_covered():
+    if gv_start is None or not gv_start.is_covered() or gv_start.luminance > max_hatched_luminance:
         return None
 
     d_sep_start = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv_start.luminance)
@@ -130,6 +131,7 @@ def flow_field_streamline(
             if (not gv.is_covered() or
                 accum_angle > accum_limit or
                 abs(gv.depth - last_depth) > max_depth_step or
+                gv.luminance > max_hatched_luminance or
                 not streamline_registry.is_point_allowed(p_new, d_sep_l, d_sep_l, 0)):
                 break
 
@@ -161,6 +163,7 @@ def flow_field_streamlines(
     d_step: float,
     max_depth_step: float,
     max_accum_angle: float,
+    max_hatched_luminance: float,
     max_steps: int,
     min_steps: int
 ) -> list[list[tuple[float, float]]]:
@@ -193,6 +196,7 @@ def flow_field_streamlines(
                 d_step=d_step,
                 max_depth_step=max_depth_step,
                 max_accum_angle=max_accum_angle,
+                max_hatched_luminance=max_hatched_luminance,
                 max_steps=max_steps,
                 min_steps=min_steps
             )
@@ -225,6 +229,7 @@ def flow_field_streamlines(
                     d_step=d_step,
                     max_depth_step=max_depth_step,
                     max_accum_angle=max_accum_angle,
+                    max_hatched_luminance=max_hatched_luminance,
                     max_steps=max_steps,
                     min_steps=min_steps
                 )
