@@ -23,3 +23,5 @@ Triangles and quads are the only face types that can be processed by the interna
 ## Development
 
 Install [fake-bpy-module](https://github.com/nutti/fake-bpy-module) for code completion.
+
+Execute `run_experiment_from_blender.py` from within Blender to run `experiment.py` in Blender's Python environment.

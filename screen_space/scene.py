@@ -17,7 +17,7 @@ class BlenderScene:
         self.camera = bpy.context.scene.camera
         assert self.camera is not None, f"No active camera found in the scene"
         self.light = light_obj
-        assert self.light.type == "EMPTY", f"Light object is not an empty"
+        assert self.light.type in ["EMPTY", "LIGHT"], f"Light object is not an empty or a light"
 
     def render_resolution(self) -> tuple[int, int]:
         render = bpy.context.scene.render
@@ -49,7 +49,7 @@ class BlenderScene:
         return self.light.matrix_world.to_translation()
 
     def light_direction(self) -> Vector:
-        direction = self.light.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))
+        direction = self.light.matrix_world.to_3x3() @ Vector((0.0, 0.0, -1.0))
         return direction.normalized()
 
     def world_triangle_data(self) -> MeshTriangles:
