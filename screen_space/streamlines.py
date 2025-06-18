@@ -4,7 +4,7 @@ import math
 import random
 import numpy as np
 
-from .grid import DepthDirectionValueGrid
+from .grid import PixelDataGrid
 
 
 @dataclass
@@ -73,12 +73,12 @@ class StreamlineRegistry:
         return True
 
 
-def d_sep_from_value(d_sep_max: float, d_sep_shadow_factor: float, shadow_gamma: float, value: float) -> float:
+def d_sep_from_luminance(d_sep_max: float, d_sep_shadow_factor: float, shadow_gamma: float, luminance: float) -> float:
     d_sep_min = d_sep_max * d_sep_shadow_factor
-    return d_sep_min + (d_sep_max - d_sep_min) * math.pow(value, shadow_gamma)
+    return d_sep_min + (d_sep_max - d_sep_min) * math.pow(luminance, shadow_gamma)
 
 def flow_field_streamline(
-    grid: DepthDirectionValueGrid,
+    grid: PixelDataGrid,
     streamline_registry: StreamlineRegistry,
     start_from_streamline_id: int,
     p_start: tuple[float, float],
@@ -89,14 +89,15 @@ def flow_field_streamline(
     d_step: float,
     max_depth_step: float,
     max_accum_angle: float,
+    max_hatched_luminance: float,
     max_steps: int,
     min_steps: int,
 ) -> list[tuple[float, float]] | None:
     gv_start = grid.grid_value(p_start[0], p_start[1])
-    if gv_start is None or not gv_start.is_covered():
+    if gv_start is None or not gv_start.is_covered() or gv_start.luminance > max_hatched_luminance:
         return None
 
-    d_sep_start = d_sep_from_value(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv_start.value)
+    d_sep_start = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv_start.luminance)
     if not streamline_registry.is_point_allowed(
         p_start, d_sep_start, d_test_factor * d_sep_start, start_from_streamline_id
     ):
@@ -125,11 +126,12 @@ def flow_field_streamline(
             new_dir = gv.direction
             dot = max(-1.0, min(1.0, next_dir[0]*new_dir[0] + next_dir[1]*new_dir[1]))
             accum_angle += math.acos(dot)
-            d_sep = d_sep_from_value(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.value)
+            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.luminance)
             d_sep_l = d_test_factor * d_sep
             if (not gv.is_covered() or
                 accum_angle > accum_limit or
                 abs(gv.depth - last_depth) > max_depth_step or
+                gv.luminance > max_hatched_luminance or
                 not streamline_registry.is_point_allowed(p_new, d_sep_l, d_sep_l, 0)):
                 break
 
@@ -151,7 +153,7 @@ def flow_field_streamline(
     return line if len(line) > (min_steps + 1) else None
 
 def flow_field_streamlines(
-    grid: DepthDirectionValueGrid,
+    grid: PixelDataGrid,
     rng_seed: int,
     seed_box_size: int,
     d_sep_max: float,
@@ -161,6 +163,7 @@ def flow_field_streamlines(
     d_step: float,
     max_depth_step: float,
     max_accum_angle: float,
+    max_hatched_luminance: float,
     max_steps: int,
     min_steps: int
 ) -> list[list[tuple[float, float]]]:
@@ -193,6 +196,7 @@ def flow_field_streamlines(
                 d_step=d_step,
                 max_depth_step=max_depth_step,
                 max_accum_angle=max_accum_angle,
+                max_hatched_luminance=max_hatched_luminance,
                 max_steps=max_steps,
                 min_steps=min_steps
             )
@@ -206,7 +210,7 @@ def flow_field_streamlines(
         sid, sl = queue.popleft()
         for lp in sl:
             gv = grid.grid_value(lp[0], lp[1])
-            d_sep = d_sep_from_value(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.value)
+            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.luminance)
             for sign in (-1.0, 1.0):
                 dir = gv.direction
                 new_seed = (
@@ -225,6 +229,7 @@ def flow_field_streamlines(
                     d_step=d_step,
                     max_depth_step=max_depth_step,
                     max_accum_angle=max_accum_angle,
+                    max_hatched_luminance=max_hatched_luminance,
                     max_steps=max_steps,
                     min_steps=min_steps
                 )
@@ -251,5 +256,5 @@ def streamlines_to_strokes(
                 drawing_origin[0] + (x_coord := (p[0]*width_inv)) * drawing_x_axis[0] + (y_coord := (p[1]*height_inv)) * drawing_y_axis[0],
                 drawing_origin[1] + x_coord * drawing_x_axis[1] + y_coord * drawing_y_axis[1],
                 drawing_origin[2] + x_coord * drawing_x_axis[2] + y_coord * drawing_y_axis[2]
-            ) for p in sl])
+            ) for p in sl], dtype=np.float32)
         for sl in streamlines]

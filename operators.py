@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .utils import BlenderScene, BlenderShaderRenderer, DepthDirectionValueGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes
+from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes, visvalingam_whyatt
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
@@ -20,10 +20,6 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
         print("Creating hatch lines...")
         scene = BlenderScene(hatch_props.input_light)
-
-        triangle_data = scene.world_triangle_data()
-        print("Vertex count:", len(triangle_data.vertices))
-        print("Normal count:", len(triangle_data.normals))
 
         width, height = scene.render_resolution()
         aspect_ratio = width / height
@@ -49,11 +45,11 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Light position:", light_position)
         print("Light direction:", light_direction)
 
-        frame_center = camera_position + (camera_rotation @ Vector((0.0, 0.0, -1.0)))
+        frame_center = camera_position + (camera_rotation @ Vector((0.0, 0.0, -hatch_props.gp_stroke_distance)))
         frame_dir_x = camera_rotation @ Vector((1.0, 0.0, 0.0))
         frame_dir_y = camera_rotation @ Vector((0.0, 1.0, 0.0))
-        frame_x_axis = ratio_sensor_size_to_focal_length * min(aspect_ratio, 1.0) * frame_dir_x
-        frame_y_axis = ratio_sensor_size_to_focal_length * min(aspect_ratio_inverse, 1.0) * frame_dir_y
+        frame_x_axis = ratio_sensor_size_to_focal_length * hatch_props.gp_stroke_distance * min(aspect_ratio, 1.0) * frame_dir_x
+        frame_y_axis = ratio_sensor_size_to_focal_length * hatch_props.gp_stroke_distance * min(aspect_ratio_inverse, 1.0) * frame_dir_y
         frame_origin = frame_center - (0.5 - 0.5/width) * frame_x_axis - (0.5 - 0.5/height) * frame_y_axis
         print("Frame center:", frame_center)
         print("Frame direction X:", frame_dir_x)
@@ -62,45 +58,84 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        renderer = BlenderShaderRenderer()
-        pixels_depth_orientation_value = renderer.render_depth_orientation_value(
-            triangle_data,
-            view_projection_matrix,
-            camera_clip_range,
-            light_direction if hatch_props.is_directional_light else light_position,
-            hatch_props.is_directional_light,
-            hatch_props.orientation_offset,
-            width,
-            height
-        )
+        hatching_settings = [(hatch_props.orientation_offset, hatch_props.max_hatched_luminance)]
+        if hatch_props.crosshatching_enabled:
+            hatching_settings.append((
+                hatch_props.orientation_offset + hatch_props.crossing_orientation_offset,
+                hatch_props.max_crosshatched_luminance
+            ))
 
-        grid = DepthDirectionValueGrid(width, height, pixels_depth_orientation_value)
+        strokes = []
 
-        streamlines = flow_field_streamlines(
-            grid,
-            rng_seed=hatch_props.rng_seed,
-            seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
-            d_sep_max=hatch_props.d_sep,
-            d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
-            shadow_gamma=hatch_props.shadow_gamma,
-            d_test_factor=hatch_props.d_test_factor,
-            d_step=hatch_props.d_step,
-            max_depth_step=hatch_props.max_depth_step,
-            max_accum_angle=hatch_props.max_accum_angle,
-            max_steps=hatch_props.max_steps,
-            min_steps=hatch_props.min_steps
-        )
+        for orientation_offset, max_hatched_luminance in hatching_settings:
+            print(f"Hatching pass for orientation offset: {orientation_offset:.5f} rad")
+            if hatch_props.render_engine == "SHADER":
+                renderer = ShaderRenderEngine()
+                triangle_data = scene.world_triangle_data()
+                print("Vertex count:", len(triangle_data.vertices))
+                print("Normal count:", len(triangle_data.normals))
+                pixels = renderer.render_coverage_luminance_depth_direction(
+                    triangle_data,
+                    view_projection_matrix,
+                    camera_clip_range,
+                    light_direction if hatch_props.is_directional_light else light_position,
+                    hatch_props.is_directional_light,
+                    orientation_offset,
+                    width,
+                    height
+                )
+            else:
+                renderer = BlenderRenderEngine(hatch_props.target_gp)
+                renderer.initialize_compositor()
+                pixels = renderer.render_coverage_luminance_depth_direction(
+                    view_projection_matrix,
+                    light_direction if hatch_props.is_directional_light else light_position,
+                    hatch_props.is_directional_light,
+                    clip_luminance = hatch_props.clip_luminance,
+                    normalize_luminance = hatch_props.normalize_luminance,
+                    orientation_offset = orientation_offset,
+                    camera_far_clip = camera_clip_range[1]
+                )
 
-        strokes = streamlines_to_strokes(
-            width,
-            height,
-            frame_origin.to_tuple(),
-            frame_x_axis.to_tuple(),
-            frame_y_axis.to_tuple(),
-            streamlines
-        )
+            print("Luminance range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
+            print("Z range:", pixels[:, :, 2].min(), pixels[:, :, 2].max())
+
+            grid = PixelDataGrid(pixels)
+
+            streamlines = flow_field_streamlines(
+                grid,
+                rng_seed=hatch_props.rng_seed,
+                seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
+                d_sep_max=hatch_props.d_sep,
+                d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
+                shadow_gamma=hatch_props.shadow_gamma,
+                d_test_factor=hatch_props.d_test_factor,
+                d_step=hatch_props.d_step,
+                max_depth_step=hatch_props.max_depth_step,
+                max_accum_angle=hatch_props.max_accum_angle,
+                max_hatched_luminance=max_hatched_luminance,
+                max_steps=hatch_props.max_steps,
+                min_steps=hatch_props.min_steps
+            )
+
+            print("Number of streamlines generated:", len(streamlines))
+            print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
+            streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error) for sl in streamlines]
+            print("Number of points in the streamlines after simplification:", sum(len(sl) for sl in streamlines))
+
+            strokes.extend(
+                    streamlines_to_strokes(
+                    width,
+                    height,
+                    frame_origin.to_tuple(),
+                    frame_x_axis.to_tuple(),
+                    frame_y_axis.to_tuple(),
+                    streamlines
+                )
+            )
+
         print("Number of strokes to generate:", len(strokes))
-
+        print("Number of points in the strokes:", sum(stroke.shape[0] for stroke in strokes))
         gp_drawing = GreasePencilDrawing(hatch_props.target_gp, hatch_props.target_gp_layer)
         gp_drawing.clear()
         gp_drawing.add_strokes(strokes, radius=hatch_props.gp_stroke_radius)
