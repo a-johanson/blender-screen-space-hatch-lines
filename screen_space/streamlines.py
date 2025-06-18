@@ -1,76 +1,10 @@
 from collections import deque
-from dataclasses import dataclass
 import math
 import random
 import numpy as np
 
 from .grid import PixelDataGrid
-
-
-@dataclass
-class StreamlineRegistryEntry:
-    point: tuple[float, float]
-    streamline_id: int
-
-class StreamlineRegistry:
-    def __init__(self, width: int, height: int, cell_size: float):
-        self.width = float(width)
-        self.height = float(height)
-        self.cell_size = cell_size
-        self.cells_x = math.ceil(self.width / cell_size)
-        self.cells_y = math.ceil(self.height / cell_size)
-        self.next_streamline_id = 1
-        self.cell_content: list[list[StreamlineRegistryEntry]] = [[] for _ in range(self.cells_x * self.cells_y)]
-
-    def _cell_coordinates(self, p: tuple[float, float]) -> tuple[int, int]:
-        cx = max(min(int(p[0] / self.cell_size), self.cells_x - 1), 0)
-        cy = max(min(int(p[1] / self.cell_size), self.cells_y - 1), 0)
-        return (cx, cy)
-
-    def _cell_index(self, p: tuple[float, float]) -> int:
-        ix, iy = self._cell_coordinates(p)
-        return iy * self.cells_x + ix
-
-    def _cell(self, ix: int, iy: int) -> list[StreamlineRegistryEntry]:
-        idx = iy * self.cells_x + ix
-        return self.cell_content[idx]
-
-    def add_streamline(self, streamline: list[tuple[float, float]]) -> int:
-        sid = self.next_streamline_id
-        self.next_streamline_id += 1
-        for p in streamline:
-            idx = self._cell_index(p)
-            self.cell_content[idx].append(StreamlineRegistryEntry(p, sid))
-        return sid
-
-    def is_point_allowed(
-        self,
-        p: tuple[float, float],
-        d_sep: float,
-        d_sep_relaxed: float,
-        relaxed_streamline_id: int
-    ) -> bool:
-        if not (0.0 <= p[0] < self.width - 1.0 and 0.0 <= p[1] < self.height - 1.0):
-            return False
-
-        cell_radius = math.ceil(d_sep / self.cell_size)
-        ix_cell, iy_cell = self._cell_coordinates(p)
-        ix_min = max(ix_cell - cell_radius, 0)
-        ix_max = min(ix_cell + cell_radius, self.cells_x - 1)
-        iy_min = max(iy_cell - cell_radius, 0)
-        iy_max = min(iy_cell + cell_radius, self.cells_y - 1)
-
-        for iy in range(iy_min, iy_max + 1):
-            for ix in range(ix_min, ix_max + 1):
-                cell = self._cell(ix, iy)
-                for candidate in cell:
-                    min_dist = d_sep_relaxed if candidate.streamline_id == relaxed_streamline_id else d_sep
-                    x_diff = candidate.point[0] - p[0]
-                    y_diff = candidate.point[1] - p[1]
-                    dist = math.sqrt(x_diff * x_diff + y_diff * y_diff)
-                    if dist < min_dist:
-                        return False
-        return True
+from .point_registry import PointRegistry
 
 
 def d_sep_from_luminance(d_sep_max: float, d_sep_shadow_factor: float, shadow_gamma: float, luminance: float) -> float:
@@ -79,7 +13,7 @@ def d_sep_from_luminance(d_sep_max: float, d_sep_shadow_factor: float, shadow_ga
 
 def flow_field_streamline(
     grid: PixelDataGrid,
-    streamline_registry: StreamlineRegistry,
+    point_registry: PointRegistry,
     start_from_streamline_id: int,
     p_start: tuple[float, float],
     d_sep_max: float,
@@ -98,7 +32,7 @@ def flow_field_streamline(
         return None
 
     d_sep_start = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv_start.luminance)
-    if not streamline_registry.is_point_allowed(
+    if not point_registry.is_point_allowed(
         p_start, d_sep_start, d_test_factor * d_sep_start, start_from_streamline_id
     ):
         return None
@@ -132,7 +66,7 @@ def flow_field_streamline(
                 accum_angle > accum_limit or
                 abs(gv.depth - last_depth) > max_depth_step or
                 gv.luminance > max_hatched_luminance or
-                not streamline_registry.is_point_allowed(p_new, d_sep_l, d_sep_l, 0)):
+                not point_registry.is_point_allowed(p_new, d_sep_l, d_sep_l, 0)):
                 break
 
             line.append(p_new)
@@ -169,7 +103,7 @@ def flow_field_streamlines(
 ) -> list[list[tuple[float, float]]]:
     width = grid.width
     height = grid.height
-    registry = StreamlineRegistry(width, height, d_sep_max)
+    registry = PointRegistry(width, height, d_sep_max)
     queue: deque = deque()
     streamlines: list[list[tuple[float, float]]] = []
 
@@ -201,7 +135,7 @@ def flow_field_streamlines(
                 min_steps=min_steps
             )
             if sl is not None:
-                sid = registry.add_streamline(sl)
+                sid = registry.add_points(sl)
                 queue.append((sid, sl))
                 streamlines.append(sl)
 
@@ -234,7 +168,7 @@ def flow_field_streamlines(
                     min_steps=min_steps
                 )
                 if new_sl:
-                    new_sid = registry.add_streamline(new_sl)
+                    new_sid = registry.add_points(new_sl)
                     queue.append((new_sid, new_sl))
                     streamlines.append(new_sl)
 
