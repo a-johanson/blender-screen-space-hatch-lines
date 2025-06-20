@@ -174,21 +174,19 @@ def flow_field_streamlines(
 
     return streamlines
 
-def streamlines_to_strokes(
+def streamlines_to_stroke_positions(
     width: int,
     height: int,
     drawing_origin: tuple[float, float, float],
     drawing_x_axis: tuple[float, float, float],
     drawing_y_axis: tuple[float, float, float],
     streamlines: list[list[tuple[float, float]]]
-) -> list[np.ndarray]:
+) -> np.ndarray:
     width_inv = 1.0 / width
     height_inv = 1.0 / height
 
-    return [
-            np.array([(
-                drawing_origin[0] + (x_coord := (p[0]*width_inv)) * drawing_x_axis[0] + (y_coord := (p[1]*height_inv)) * drawing_y_axis[0],
-                drawing_origin[1] + x_coord * drawing_x_axis[1] + y_coord * drawing_y_axis[1],
-                drawing_origin[2] + x_coord * drawing_x_axis[2] + y_coord * drawing_y_axis[2]
-            ) for p in sl], dtype=np.float32)
-        for sl in streamlines]
+    return np.array([(
+            drawing_origin[0] + (x_coord := (p[0]*width_inv)) * drawing_x_axis[0] + (y_coord := (p[1]*height_inv)) * drawing_y_axis[0],
+            drawing_origin[1] + x_coord * drawing_x_axis[1] + y_coord * drawing_y_axis[1],
+            drawing_origin[2] + x_coord * drawing_x_axis[2] + y_coord * drawing_y_axis[2]
+        ) for sl in streamlines for p in sl], dtype=np.float32)

@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_strokes, visvalingam_whyatt
+from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_stroke_positions, visvalingam_whyatt
 
 
 class HATCH_OT_create_lines(bpy.types.Operator):
@@ -65,7 +65,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                 hatch_props.max_crosshatched_luminance
             ))
 
-        strokes = []
+        streamlines = []
 
         for orientation_offset, max_hatched_luminance in hatching_settings:
             print(f"Hatching pass for orientation offset: {orientation_offset:.5f} rad")
@@ -102,43 +102,43 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
             grid = PixelDataGrid(pixels)
 
-            streamlines = flow_field_streamlines(
-                grid,
-                rng_seed=hatch_props.rng_seed,
-                seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
-                d_sep_max=hatch_props.d_sep,
-                d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
-                shadow_gamma=hatch_props.shadow_gamma,
-                d_test_factor=hatch_props.d_test_factor,
-                d_step=hatch_props.d_step,
-                max_depth_step=hatch_props.max_depth_step,
-                max_accum_angle=hatch_props.max_accum_angle,
-                max_hatched_luminance=max_hatched_luminance,
-                max_steps=hatch_props.max_steps,
-                min_steps=hatch_props.min_steps
-            )
-
-            print("Number of streamlines generated:", len(streamlines))
-            print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
-            streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error) for sl in streamlines]
-            print("Number of points in the streamlines after simplification:", sum(len(sl) for sl in streamlines))
-
-            strokes.extend(
-                    streamlines_to_strokes(
-                    width,
-                    height,
-                    frame_origin.to_tuple(),
-                    frame_x_axis.to_tuple(),
-                    frame_y_axis.to_tuple(),
-                    streamlines
+            streamlines.extend(
+                    flow_field_streamlines(
+                    grid,
+                    rng_seed=hatch_props.rng_seed,
+                    seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
+                    d_sep_max=hatch_props.d_sep,
+                    d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
+                    shadow_gamma=hatch_props.shadow_gamma,
+                    d_test_factor=hatch_props.d_test_factor,
+                    d_step=hatch_props.d_step,
+                    max_depth_step=hatch_props.max_depth_step,
+                    max_accum_angle=hatch_props.max_accum_angle,
+                    max_hatched_luminance=max_hatched_luminance,
+                    max_steps=hatch_props.max_steps,
+                    min_steps=hatch_props.min_steps
                 )
             )
 
-        print("Number of strokes to generate:", len(strokes))
-        print("Number of points in the strokes:", sum(stroke.shape[0] for stroke in strokes))
+        print("Number of streamlines generated:", len(streamlines))
+        print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
+        streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error) for sl in streamlines]
+        stroke_lengths = [len(sl) for sl in streamlines]
+        print("Number of points in the streamlines after simplification:", sum(stroke_lengths))
+        stroke_positions = streamlines_to_stroke_positions(
+            width,
+            height,
+            frame_origin.to_tuple(),
+            frame_x_axis.to_tuple(),
+            frame_y_axis.to_tuple(),
+            streamlines
+        )
+        print("Number of points in the strokes:", stroke_positions.shape[0])
+
         gp_drawing = GreasePencilDrawing(hatch_props.target_gp, hatch_props.target_gp_layer)
-        gp_drawing.clear()
-        gp_drawing.add_strokes(strokes, radius=hatch_props.gp_stroke_radius)
+        if hatch_props.clear_layer:
+            gp_drawing.clear()
+        gp_drawing.add_strokes(stroke_lengths, stroke_positions, hatch_props.gp_stroke_radius)
 
         self.report({"INFO"}, "Hatch lines created successfully")
         return {"FINISHED"}

@@ -177,6 +177,12 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         items=get_gp_layers
     )
 
+    clear_layer: BoolProperty(
+        name="Clear Layer",
+        description="Clear the target layer before adding new hatch lines",
+        default=True
+    )
+
     gp_stroke_radius: FloatProperty(
         name="Stroke Radius",
         description="Radius of the grease pencil strokes",
@@ -268,6 +274,8 @@ class HATCH_PT_panel(bpy.types.Panel):
             box.prop(hatch_props, "target_gp_layer")
             if not has_layers:
                 box.label(text="No layers found in this Grease Pencil", icon="ERROR")
+            else:
+                box.prop(hatch_props, "clear_layer")
 
         box.prop(hatch_props, "gp_stroke_radius")
         box.prop(hatch_props, "gp_stroke_distance")
