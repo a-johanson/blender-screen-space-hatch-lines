@@ -21,7 +21,15 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         print("Creating hatch lines...")
         scene = BlenderScene(hatch_props.input_light)
 
-        width, height = scene.render_resolution()
+        blender_width, blender_height = scene.render_resolution()
+
+        if blender_width >= blender_height:
+            width = hatch_props.render_resolution
+            height = int(width * blender_height / blender_width)
+        else:
+            height = hatch_props.render_resolution
+            width = int(height * blender_width / blender_height)
+
         aspect_ratio = width / height
         aspect_ratio_inverse = height / width
         ratio_sensor_size_to_focal_length = scene.ratio_sensor_size_to_focal_length()

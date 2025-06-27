@@ -41,6 +41,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=100.0
     )
 
+    render_resolution: IntProperty(
+        name="Render Resolution",
+        description="Resolution of the longest dimension for generating hatch lines",
+        default=1000,
+        min=100,
+        max=10000
+    )
+
     d_sep: FloatProperty(
         name="Separation Distance [px]",
         description="Distance between hatch lines",
@@ -236,6 +244,7 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.label(text="General Settings:")
         box.prop(hatch_props, "rng_seed")
         box.prop(hatch_props, "seed_box_size_factor")
+        box.prop(hatch_props, "render_resolution")
 
         box = layout.box()
         box.label(text="Distance and Step Settings:")
