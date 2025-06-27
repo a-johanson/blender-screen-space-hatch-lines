@@ -1,12 +1,22 @@
 import bpy
 from mathutils import Vector
 
-from screen_space import BlenderRenderEngine, BlenderScene, GreasePencilDrawing, PixelDataGrid, ShaderRenderEngine, poisson_disk_stipples, stipples_to_stroke_positions
+from screen_space import BlenderRenderEngine, BlenderScene, GreasePencilDrawing, PixelDataGrid, ShaderRenderEngine, catmul_rom_interpolate, poisson_disk_stipples, scribbles_from_stipples, streamlines_to_stroke_positions, visvalingam_whyatt
 
+
+render_resolution = 1000
 
 scene = BlenderScene(bpy.context.scene.objects["Light"])
 
-width, height = scene.render_resolution()
+blender_width, blender_height = scene.render_resolution()
+
+if blender_width >= blender_height:
+    width = render_resolution
+    height = int(width * blender_height / blender_width)
+else:
+    height = render_resolution
+    width = int(height * blender_width / blender_height)
+
 aspect_ratio = width / height
 aspect_ratio_inverse = height / width
 ratio_sensor_size_to_focal_length = scene.ratio_sensor_size_to_focal_length()
@@ -83,24 +93,43 @@ stipples = poisson_disk_stipples(
     grid,
     rng_seed=42,
     seed_box_size=10,
-    r_max=8.0,
-    r_min=1.3,
-    gamma=3.5,
+    r_max=15.0,
+    r_min=3.0,
+    gamma=3.0,
     max_stippled_luminance=1.0,
-    child_count=75
+    child_count=30
 )
 print(f"Generated {len(stipples)} stipples")
 
-stroke_lengths = [1] * len(stipples)
-stroke_positions = stipples_to_stroke_positions(
+# stroke_lengths = [1] * len(stipples)
+# stroke_positions = stipples_to_stroke_positions(
+#     width,
+#     height,
+#     frame_origin.to_tuple(),
+#     frame_x_axis.to_tuple(),
+#     frame_y_axis.to_tuple(),
+#     stipples
+# )
+
+scribbles = []
+for _ in range(2):
+    scribbles.append(scribbles_from_stipples(stipples, initial_sampling_rate=65, min_remaining_point_fraction=0.025, depth_factor=1000.0))
+scribbles = [catmul_rom_interpolate(sl, points_per_segment=10) for sl in scribbles]
+print("Number of points in the scribble lines:", sum(len(sl) for sl in scribbles))
+scribbles = [visvalingam_whyatt(sl, max_area=0.05) for sl in scribbles]
+print("Number of points after simplification:", sum(len(sl) for sl in scribbles))
+
+stroke_positions = streamlines_to_stroke_positions(
     width,
     height,
     frame_origin.to_tuple(),
     frame_x_axis.to_tuple(),
     frame_y_axis.to_tuple(),
-    stipples
+    scribbles
 )
+stroke_lengths = [len(sl) for sl in scribbles]
+print("Number of points in the strokes:", stroke_positions.shape[0])
 
 gp_drawing = GreasePencilDrawing(bpy.context.scene.objects["HatchLines"], "Layer")
 gp_drawing.clear()
-gp_drawing.add_strokes(stroke_lengths, stroke_positions, radius=0.0012)
+gp_drawing.add_strokes(stroke_lengths, stroke_positions, radius=0.0005)
