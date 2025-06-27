@@ -13,7 +13,7 @@ def catmull_rom_spline(p0: tuple[float, float], p1: tuple[float, float], p2: tup
     return (x, y)
 
 
-def catmul_rom_interpolate(points: list[tuple[float, float]], points_per_segment: int = 10) -> list[tuple[float, float]]:
+def catmull_rom_interpolate(points: list[tuple[float, float]], points_per_segment: int = 10) -> list[tuple[float, float]]:
     assert len(points) >= 4, "At least 4 points are required for Catmull-Rom interpolation"
 
     generated_points = []

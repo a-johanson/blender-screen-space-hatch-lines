@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from screen_space import BlenderRenderEngine, BlenderScene, GreasePencilDrawing, PixelDataGrid, ShaderRenderEngine, catmul_rom_interpolate, poisson_disk_stipples, scribbles_from_stipples, streamlines_to_stroke_positions, visvalingam_whyatt
+from screen_space import BlenderRenderEngine, BlenderScene, GreasePencilDrawing, PixelDataGrid, ShaderRenderEngine, catmull_rom_interpolate, poisson_disk_stipples, scribbles_from_stipples, streamlines_to_stroke_positions, visvalingam_whyatt
 
 
 render_resolution = 1000
@@ -113,8 +113,8 @@ print(f"Generated {len(stipples)} stipples")
 
 scribbles = []
 for _ in range(2):
-    scribbles.append(scribbles_from_stipples(stipples, initial_sampling_rate=65, min_remaining_point_fraction=0.025, depth_factor=1000.0))
-scribbles = [catmul_rom_interpolate(sl, points_per_segment=10) for sl in scribbles]
+    scribbles.append(scribbles_from_stipples(stipples, initial_sampling_rate=65, min_remaining_point_fraction=0.025, depth_factor=10000.0))
+scribbles = [catmull_rom_interpolate(sl, points_per_segment=10) for sl in scribbles]
 print("Number of points in the scribble lines:", sum(len(sl) for sl in scribbles))
 scribbles = [visvalingam_whyatt(sl, max_area=0.05) for sl in scribbles]
 print("Number of points after simplification:", sum(len(sl) for sl in scribbles))
