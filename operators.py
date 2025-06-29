@@ -22,6 +22,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         scene = BlenderScene(hatch_props.input_light)
 
         blender_width, blender_height = scene.render_resolution()
+        print(f"Blender render resolution: {blender_width} x {blender_height} px")
 
         if blender_width >= blender_height:
             width = hatch_props.render_resolution
@@ -29,6 +30,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
         else:
             height = hatch_props.render_resolution
             width = int(height * blender_width / blender_height)
+        print(f"Render resolution for hatching: {width} x {height} px")
 
         aspect_ratio = width / height
         aspect_ratio_inverse = height / width
@@ -93,6 +95,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                     height
                 )
             else:
+                scene.set_render_resolution(width, height)
                 renderer = BlenderRenderEngine(hatch_props.target_gp)
                 renderer.initialize_compositor()
                 pixels = renderer.render_coverage_luminance_depth_direction(
@@ -104,6 +107,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                     orientation_offset = orientation_offset,
                     camera_far_clip = camera_clip_range[1]
                 )
+                scene.set_render_resolution(blender_width, blender_height)
 
             print("Luminance range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
             print("Z range:", pixels[:, :, 2].min(), pixels[:, :, 2].max())

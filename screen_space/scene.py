@@ -23,6 +23,11 @@ class BlenderScene:
         render = bpy.context.scene.render
         return render.resolution_x, render.resolution_y
 
+    def set_render_resolution(self, width: int, height: int):
+        render = bpy.context.scene.render
+        render.resolution_x = width
+        render.resolution_y = height
+
     def ratio_sensor_size_to_focal_length(self) -> float:
         camera_data = self.camera.data
         focal_length = camera_data.lens
