@@ -16,16 +16,7 @@ def get_gp_layers(props, _context):
 
 
 class HatchLineProperties(bpy.types.PropertyGroup):
-    render_engine: EnumProperty(
-        name="Render Engine",
-        description="Select which rendering engine to use",
-        items=[
-            ("BLENDER", "Blender", "Use Blender's render engine"),
-            ("SHADER", "GLSL Shader", "Use shader-based rendering")
-        ],
-        default="SHADER"
-    )
-
+    # General Settings
     rng_seed: IntProperty(
         name="RNG Seed",
         description="Seed value for placing seed points",
@@ -43,12 +34,93 @@ class HatchLineProperties(bpy.types.PropertyGroup):
 
     render_resolution: IntProperty(
         name="Render Resolution",
-        description="Resolution of the longest dimension for generating hatch lines",
+        description="Resolution of the longest render dimension for generating hatch lines",
         default=1000,
         min=100,
         max=10000
     )
 
+    render_engine: EnumProperty(
+        name="Render Engine",
+        description="Select which rendering engine to use",
+        items=[
+            ("BLENDER", "Blender", "Use Blender's render engine"),
+            ("SHADER", "GLSL Shader", "Use shader-based rendering")
+        ],
+        default="SHADER"
+    )
+
+    clip_luminance: BoolProperty(
+        name="Clip Luminance",
+        description="Clip luminance values to the range [0, 1]",
+        default=False
+    )
+
+    normalize_luminance: BoolProperty(
+        name="Normalize Luminance",
+        description="Normalize luminance values to the range [0, 1]",
+        default=False
+    )
+
+    # Lighting and Orientation
+    input_light: PointerProperty(
+        type=bpy.types.Object,
+        name="Empty or Light",
+        description="Empty or Light object to use as input for lighting",
+        poll=lambda _props, obj: obj.type in ["EMPTY", "LIGHT"]
+    )
+
+    is_directional_light: BoolProperty(
+        name="Directional Light",
+        description="Use this empty as a directional light source",
+        default=True
+    )
+
+    orientation_offset: FloatProperty(
+        name="Orientation Offset [rad]",
+        description="Offset for the orientation of the hatch lines",
+        default=0.0,
+        min=-1.57079632679,
+        max=1.57079632679 
+    )
+
+    # Target Grease Pencil
+    target_gp: PointerProperty(
+        type=bpy.types.Object,
+        name="Target Grease Pencil",
+        description="Grease Pencil object to add hatch lines to (v3 only)",
+        poll=lambda _props, obj: obj.type == "GREASEPENCIL"
+    )
+
+    target_gp_layer: EnumProperty(
+        name="Target Layer",
+        description="Grease Pencil layer to add hatch lines to",
+        items=get_gp_layers
+    )
+
+    clear_layer: BoolProperty(
+        name="Clear Layer",
+        description="Clear the target layer before adding new hatch lines",
+        default=True
+    )
+
+    gp_stroke_distance: FloatProperty(
+        name="Stroke Distance [world units]",
+        description="Distance from the camera at which the grease pencil strokes are drawn",
+        default=1.0,
+        min=0.5,
+        max=10.0
+    )
+
+    gp_stroke_radius: FloatProperty(
+        name="Stroke Radius [world units]",
+        description="Radius of the grease pencil strokes",
+        default=0.0005,
+        min=0.0005,
+        max=0.05
+    )
+
+    # Hatch Line Settings
     d_sep: FloatProperty(
         name="Separation Distance [px]",
         description="Distance between hatch lines",
@@ -89,22 +161,6 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=25.0
     )
 
-    max_depth_step: FloatProperty(
-        name="Max Depth Step [world units]",
-        description="Maximum depth step for hatch lines",
-        default=0.05,
-        min=0.0001,
-        max=10.0
-    )
-
-    max_accum_angle: FloatProperty(
-        name="Max Accumulated angle [rad]",
-        description="Maximum accumulated angle for hatch lines",
-        default=5.0,
-        min=0.1,
-        max=10.0
-    )
-
     max_steps: IntProperty(
         name="Max Steps",
         description="Maximum number of steps per hatch line",
@@ -121,25 +177,28 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=10000
     )
 
-    input_light: PointerProperty(
-        type=bpy.types.Object,
-        name="Empty or Light",
-        description="Empty or Light object to use as input for lighting",
-        poll=lambda _props, obj: obj.type in ["EMPTY", "LIGHT"]
+    line_simplification_error: FloatProperty(
+        name="Max. Line Simplification Error [px^2]",
+        description="Maximum error allowed when simplifying hatch lines",
+        default=0.02,
+        min=0.0001,
+        max=10.0
     )
 
-    is_directional_light: BoolProperty(
-        name="Directional Light",
-        description="Use this empty as a directional light source",
-        default=True
+    max_depth_step: FloatProperty(
+        name="Max Depth Step [world units]",
+        description="Maximum depth step for hatch lines",
+        default=0.05,
+        min=0.0001,
+        max=10.0
     )
 
-    orientation_offset: FloatProperty(
-        name="Orientation Offset [rad]",
-        description="Offset for the orientation of the hatch lines",
-        default=0.0,
-        min=-1.57079632679,
-        max=1.57079632679 
+    max_accum_angle: FloatProperty(
+        name="Max Accumulated angle [rad]",
+        description="Maximum accumulated angle for hatch lines",
+        default=5.0,
+        min=0.1,
+        max=10.0
     )
 
     max_hatched_luminance: FloatProperty(
@@ -172,61 +231,6 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=10.0
     )
 
-    target_gp: PointerProperty(
-        type=bpy.types.Object,
-        name="Target Grease Pencil",
-        description="Grease Pencil object to add hatch lines to (v3 only)",
-        poll=lambda _props, obj: obj.type == "GREASEPENCIL"
-    )
-
-    target_gp_layer: EnumProperty(
-        name="Target Layer",
-        description="Grease Pencil layer to add hatch lines to",
-        items=get_gp_layers
-    )
-
-    clear_layer: BoolProperty(
-        name="Clear Layer",
-        description="Clear the target layer before adding new hatch lines",
-        default=True
-    )
-
-    gp_stroke_radius: FloatProperty(
-        name="Stroke Radius",
-        description="Radius of the grease pencil strokes",
-        default=0.0005,
-        min=0.0005,
-        max=0.05
-    )
-
-    gp_stroke_distance: FloatProperty(
-        name="Stroke Distance",
-        description="Distance from the camera at which the grease pencil strokes are drawn",
-        default=1.0,
-        min=0.5,
-        max=10.0
-    )
-
-    line_simplification_error: FloatProperty(
-        name="Max. Line Simplification Error [px^2]",
-        description="Maximum error allowed when simplifying hatch lines",
-        default=0.02,
-        min=0.0001,
-        max=10.0
-    )
-
-    clip_luminance: BoolProperty(
-        name="Clip Luminance",
-        description="Clip luminance values to the range [0, 1]",
-        default=False
-    )
-
-    normalize_luminance: BoolProperty(
-        name="Normalize Luminance",
-        description="Normalize luminance values to the range [0, 1]",
-        default=False
-    )
-
 
 class HATCH_PT_panel(bpy.types.Panel):
     bl_label = "Hatch Lines"
@@ -245,33 +249,17 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.prop(hatch_props, "rng_seed")
         box.prop(hatch_props, "seed_box_size_factor")
         box.prop(hatch_props, "render_resolution")
-
-        box = layout.box()
-        box.label(text="Distance and Step Settings:")
-        box.prop(hatch_props, "d_sep")
-        box.prop(hatch_props, "d_sep_shadow_factor")
-        box.prop(hatch_props, "shadow_gamma")
-        box.prop(hatch_props, "d_test_factor")
-        box.prop(hatch_props, "d_step")
-        box.prop(hatch_props, "line_simplification_error")
-
-        box = layout.box()
-        box.label(text="Line Constraints:")
-        box.prop(hatch_props, "max_depth_step")
-        box.prop(hatch_props, "max_accum_angle")
-        box.prop(hatch_props, "max_steps")
-        box.prop(hatch_props, "min_steps")
+        box.prop(hatch_props, "render_engine")
+        if hatch_props.render_engine == "BLENDER":
+            box.label(text="Warning: Will overwrite compositor nodes.", icon="ERROR")
+            box.prop(hatch_props, "clip_luminance")
+            box.prop(hatch_props, "normalize_luminance")
 
         box = layout.box()
         box.label(text="Lighting and Orientation:")
         box.prop(hatch_props, "input_light")
         box.prop(hatch_props, "is_directional_light")
         box.prop(hatch_props, "orientation_offset")
-        box.prop(hatch_props, "max_hatched_luminance")
-        box.prop(hatch_props, "crosshatching_enabled")
-        if hatch_props.crosshatching_enabled:
-            box.prop(hatch_props, "crossing_orientation_offset")
-            box.prop(hatch_props, "max_crosshatched_luminance")
 
         box = layout.box()
         box.label(text="Target Grease Pencil:")
@@ -286,16 +274,26 @@ class HATCH_PT_panel(bpy.types.Panel):
             else:
                 box.prop(hatch_props, "clear_layer")
 
-        box.prop(hatch_props, "gp_stroke_radius")
         box.prop(hatch_props, "gp_stroke_distance")
+        box.prop(hatch_props, "gp_stroke_radius")
 
         box = layout.box()
-        box.label(text="Render Engine:")
-        box.prop(hatch_props, "render_engine", text="")
-        if hatch_props.render_engine == "BLENDER":
-            box.label(text="Warning: Will overwrite compositor nodes.", icon="ERROR")
-            box.prop(hatch_props, "clip_luminance")
-            box.prop(hatch_props, "normalize_luminance")
+        box.label(text="Hatch Line Settings:")
+        box.prop(hatch_props, "d_sep")
+        box.prop(hatch_props, "d_sep_shadow_factor")
+        box.prop(hatch_props, "shadow_gamma")
+        box.prop(hatch_props, "d_test_factor")
+        box.prop(hatch_props, "d_step")
+        box.prop(hatch_props, "max_steps")
+        box.prop(hatch_props, "min_steps")
+        box.prop(hatch_props, "line_simplification_error")
+        box.prop(hatch_props, "max_depth_step")
+        box.prop(hatch_props, "max_accum_angle")
+        box.prop(hatch_props, "max_hatched_luminance")
+        box.prop(hatch_props, "crosshatching_enabled")
+        if hatch_props.crosshatching_enabled:
+            box.prop(hatch_props, "crossing_orientation_offset")
+            box.prop(hatch_props, "max_crosshatched_luminance")
 
         layout.separator()
         layout.operator("hatch.create_lines", text="Create Hatch Lines")
