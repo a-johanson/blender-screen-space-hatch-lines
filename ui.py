@@ -289,6 +289,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         default=False
     )
 
+    scribbling_iterations: IntProperty(
+        name="Scribbling Iterations",
+        description="Number of iterations for scribbling",
+        default=2,
+        min=1,
+        max=25
+    )
+
     initial_sub_sampling_rate: IntProperty(
         name="Initial Sub-Sampling Rate",
         description="Initial sub-sampling rate for scribbles",
@@ -313,10 +321,18 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=1.0e6
     )
 
+    bezier_points_per_segment: IntProperty(
+        name="Bezier Points per Segment",
+        description="Number of points per segment for Catmull-Rom interpolation",
+        default=10,
+        min=2,
+        max=100
+    )
+
     line_simplification_error_scribbling: FloatProperty(
         name="Max. Line Simplification Error [px^2]",
         description="Maximum error allowed when simplifying scribble lines",
-        default=0.02,
+        default=0.05,
         min=0.0001,
         max=10.0
     )
@@ -395,9 +411,11 @@ class HATCH_PT_panel(bpy.types.Panel):
             box.prop(hatch_props, "max_stippled_luminance")
             box.prop(hatch_props, "scribbling_enabled")
             if hatch_props.scribbling_enabled:
+                box.prop(hatch_props, "scribbling_iterations")
                 box.prop(hatch_props, "initial_sub_sampling_rate")
                 box.prop(hatch_props, "min_remaining_point_share")
                 box.prop(hatch_props, "depth_factor")
+                box.prop(hatch_props, "bezier_points_per_segment")
                 box.prop(hatch_props, "line_simplification_error_scribbling")
 
         layout.separator()

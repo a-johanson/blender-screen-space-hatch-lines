@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_stroke_positions, visvalingam_whyatt
+from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, catmull_rom_interpolate, flow_field_streamlines, poisson_disk_stipples, scribbles_from_stipples, stipples_to_stroke_positions, streamlines_to_stroke_positions, visvalingam_whyatt
 
 
 class HATCH_OT_generate(bpy.types.Operator):
@@ -18,7 +18,7 @@ class HATCH_OT_generate(bpy.types.Operator):
     def execute(self, context):
         hatch_props = context.scene.hatch_line_props
 
-        print("Creating hatch lines...")
+        print("Generating screen-space shading effect...")
         scene = BlenderScene(hatch_props.input_light)
 
         blender_width, blender_height = scene.render_resolution()
@@ -30,7 +30,7 @@ class HATCH_OT_generate(bpy.types.Operator):
         else:
             height = hatch_props.render_resolution
             width = int(height * blender_width / blender_height)
-        print(f"Render resolution for hatching: {width} x {height} px")
+        print(f"Render resolution for effect: {width} x {height} px")
 
         aspect_ratio = width / height
         aspect_ratio_inverse = height / width
@@ -68,17 +68,7 @@ class HATCH_OT_generate(bpy.types.Operator):
         print("Frame Y axis:", frame_y_axis)
         print("Frame origin:", frame_origin)
 
-        hatching_settings = [(hatch_props.orientation_offset, hatch_props.max_hatched_luminance)]
-        if hatch_props.crosshatching_enabled:
-            hatching_settings.append((
-                hatch_props.orientation_offset + hatch_props.crossing_orientation_offset,
-                hatch_props.max_crosshatched_luminance
-            ))
-
-        streamlines = []
-
-        for orientation_offset, max_hatched_luminance in hatching_settings:
-            print(f"Hatching pass for orientation offset: {orientation_offset:.5f} rad")
+        def render_pixel_grid(orientation_offset) -> PixelDataGrid:
             if hatch_props.render_engine == "SHADER":
                 renderer = ShaderRenderEngine()
                 triangle_data = scene.world_triangle_data()
@@ -112,47 +102,112 @@ class HATCH_OT_generate(bpy.types.Operator):
             print("Luminance range:", pixels[:, :, 1].min(), pixels[:, :, 1].max())
             print("Z range:", pixels[:, :, 2].min(), pixels[:, :, 2].max())
 
-            grid = PixelDataGrid(pixels)
+            return PixelDataGrid(pixels)
 
-            streamlines.extend(
-                    flow_field_streamlines(
-                    grid,
-                    rng_seed=hatch_props.rng_seed,
-                    seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
-                    d_sep_max=hatch_props.d_sep,
-                    d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
-                    gamma_luminance=hatch_props.gamma_hatching,
-                    d_test_factor=hatch_props.d_test_factor,
-                    d_step=hatch_props.d_step,
-                    max_depth_step=hatch_props.max_depth_step,
-                    max_accum_angle=hatch_props.max_accum_angle,
-                    max_hatched_luminance=max_hatched_luminance,
-                    max_steps=hatch_props.max_steps,
-                    min_steps=hatch_props.min_steps
+
+        if hatch_props.technique == "HATCHING":
+            print("Using hatch lines...")
+            hatching_settings = [(hatch_props.orientation_offset, hatch_props.max_hatched_luminance)]
+            if hatch_props.crosshatching_enabled:
+                hatching_settings.append((
+                    hatch_props.orientation_offset + hatch_props.crossing_orientation_offset,
+                    hatch_props.max_crosshatched_luminance
+                ))
+
+            streamlines = []
+
+            for orientation_offset, max_hatched_luminance in hatching_settings:
+                print(f"Hatching pass for orientation offset: {orientation_offset:.5f} rad")
+                grid = render_pixel_grid(orientation_offset)
+
+                streamlines.extend(
+                        flow_field_streamlines(
+                        grid,
+                        rng_seed=hatch_props.rng_seed,
+                        seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
+                        d_sep_max=hatch_props.d_sep,
+                        d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
+                        gamma_luminance=hatch_props.gamma_hatching,
+                        d_test_factor=hatch_props.d_test_factor,
+                        d_step=hatch_props.d_step,
+                        max_depth_step=hatch_props.max_depth_step,
+                        max_accum_angle=hatch_props.max_accum_angle,
+                        max_hatched_luminance=max_hatched_luminance,
+                        max_steps=hatch_props.max_steps,
+                        min_steps=hatch_props.min_steps
+                    )
                 )
+
+            print("Number of streamlines generated:", len(streamlines))
+            print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
+            streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error_hatching) for sl in streamlines]
+            stroke_lengths = [len(sl) for sl in streamlines]
+            print("Number of points in the streamlines after simplification:", sum(stroke_lengths))
+            stroke_positions = streamlines_to_stroke_positions(
+                width,
+                height,
+                frame_origin.to_tuple(),
+                frame_x_axis.to_tuple(),
+                frame_y_axis.to_tuple(),
+                streamlines
             )
+        elif hatch_props.technique == "STIPPLING":
+            print("Using stippling and scribbling...")
+            grid = render_pixel_grid(orientation_offset=0.0)
 
-        print("Number of streamlines generated:", len(streamlines))
-        print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
-        streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error_hatching) for sl in streamlines]
-        stroke_lengths = [len(sl) for sl in streamlines]
-        print("Number of points in the streamlines after simplification:", sum(stroke_lengths))
-        stroke_positions = streamlines_to_stroke_positions(
-            width,
-            height,
-            frame_origin.to_tuple(),
-            frame_x_axis.to_tuple(),
-            frame_y_axis.to_tuple(),
-            streamlines
-        )
+            stipples = poisson_disk_stipples(
+                grid,
+                rng_seed=hatch_props.rng_seed,
+                seed_box_size=hatch_props.seed_box_size_factor * hatch_props.max_radius,
+                r_max=hatch_props.max_radius,
+                r_min=hatch_props.min_radius,
+                gamma=hatch_props.gamma_stippling,
+                max_stippled_luminance=hatch_props.max_stippled_luminance,
+                child_count=hatch_props.child_count
+            )
+            print(f"Generated {len(stipples)} stipples")
+
+            if not hatch_props.scribbling_enabled:
+                stroke_lengths = [1] * len(stipples)
+                stroke_positions = stipples_to_stroke_positions(
+                    width,
+                    height,
+                    frame_origin.to_tuple(),
+                    frame_x_axis.to_tuple(),
+                    frame_y_axis.to_tuple(),
+                    stipples
+                )
+            else:
+                scribbles = []
+                for _ in range(hatch_props.scribbling_iterations):
+                    scribbles.append(scribbles_from_stipples(
+                            stipples,
+                            initial_sampling_rate=hatch_props.initial_sub_sampling_rate,
+                            min_remaining_point_fraction=hatch_props.min_remaining_point_share,
+                            depth_factor=hatch_props.depth_factor
+                        ))
+                scribbles = [catmull_rom_interpolate(sl, points_per_segment=hatch_props.bezier_points_per_segment) for sl in scribbles]
+                print("Number of points in the scribble lines:", sum(len(sl) for sl in scribbles))
+                scribbles = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error_scribbling) for sl in scribbles]
+                print("Number of points after simplification:", sum(len(sl) for sl in scribbles))
+
+                stroke_lengths = [len(sl) for sl in scribbles]
+                stroke_positions = streamlines_to_stroke_positions(
+                    width,
+                    height,
+                    frame_origin.to_tuple(),
+                    frame_x_axis.to_tuple(),
+                    frame_y_axis.to_tuple(),
+                    scribbles
+                )
+
         print("Number of points in the strokes:", stroke_positions.shape[0])
-
         gp_drawing = GreasePencilDrawing(hatch_props.target_gp, hatch_props.target_gp_layer)
         if hatch_props.clear_layer:
             gp_drawing.clear()
         gp_drawing.add_strokes(stroke_lengths, stroke_positions, hatch_props.gp_stroke_radius)
 
-        self.report({"INFO"}, "Hatch lines created successfully")
+        self.report({"INFO"}, "Screen-space effect generated successfully")
         return {"FINISHED"}
 
 
