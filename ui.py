@@ -243,7 +243,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
 
     # Stipple Settings
     max_radius: FloatProperty(
-        name="Max. Radius",
+        name="Max. Radius [px]",
         description="Maximum exclusion radius for stipples",
         default=15.0,
         min=0.5,
@@ -251,7 +251,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     min_radius: FloatProperty(
-        name="Min. Radius",
+        name="Min. Radius [px]",
         description="Minimum exclusion radius for stipples",
         default=3.0,
         min=0.5,
@@ -339,11 +339,11 @@ class HatchLineProperties(bpy.types.PropertyGroup):
 
 
 class HATCH_PT_panel(bpy.types.Panel):
-    bl_label = "Hatch Lines"
+    bl_label = "Screen-Space Shading"
     bl_idname = "HATCH_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Hatch Lines"
+    bl_category = "Screen-Space Shading"
 
     def draw(self, context):
         layout = self.layout
