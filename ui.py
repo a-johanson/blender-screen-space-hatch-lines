@@ -17,6 +17,16 @@ def get_gp_layers(props, _context):
 
 class HatchLineProperties(bpy.types.PropertyGroup):
     # General Settings
+    technique: EnumProperty(
+        name="Technique",
+        description="Select which technique to use",
+        items=[
+            ("HATCHING", "Hatching", "Use hatching technique"),
+            ("STIPPLING", "Stippling & Scribbling", "Use stippling and scribbling technique")
+        ],
+        default="HATCHING"
+    )
+
     rng_seed: IntProperty(
         name="RNG Seed",
         description="Seed value for placing seed points",
@@ -137,9 +147,9 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=1.0
     )
 
-    gamma_luminance: FloatProperty(
+    gamma_hatching: FloatProperty(
         name="Luminance Gamma",
-        description="Gamma exponent for luminance values",
+        description="Gamma exponent for transforming luminance values",
         default=1.0,
         min=0.1,
         max=10.0
@@ -162,7 +172,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_steps: IntProperty(
-        name="Max Steps",
+        name="Max. Steps",
         description="Maximum number of steps per hatch line",
         default=100,
         min=1,
@@ -170,14 +180,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     min_steps: IntProperty(
-        name="Min Steps",
+        name="Min. Steps",
         description="Minimum number of steps per hatch line",
         default=10,
         min=1,
         max=10000
     )
 
-    line_simplification_error: FloatProperty(
+    line_simplification_error_hatching: FloatProperty(
         name="Max. Line Simplification Error [px^2]",
         description="Maximum error allowed when simplifying hatch lines",
         default=0.02,
@@ -186,7 +196,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_depth_step: FloatProperty(
-        name="Max Depth Step [world units]",
+        name="Max. Depth Step [world units]",
         description="Maximum depth step for hatch lines",
         default=0.05,
         min=0.0001,
@@ -194,7 +204,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_accum_angle: FloatProperty(
-        name="Max Accumulated angle [rad]",
+        name="Max. Accumulated angle [rad]",
         description="Maximum accumulated angle for hatch lines",
         default=5.0,
         min=0.1,
@@ -202,7 +212,7 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_hatched_luminance: FloatProperty(
-        name="Maximum Hatched Luminance",
+        name="Max. Hatched Luminance",
         description="Maximum luminance value that will receive hatching",
         default=10.0,
         min=0.0,
@@ -224,10 +234,90 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_crosshatched_luminance: FloatProperty(
-        name="Maximum Crosshatched Luminance",
+        name="Max. Crosshatched Luminance",
         description="Maximum luminance value that will receive crosshatching",
         default=10.0,
         min=0.0,
+        max=10.0
+    )
+
+    # Stipple Settings
+    max_radius: FloatProperty(
+        name="Max. Radius",
+        description="Maximum exclusion radius for stipples",
+        default=15.0,
+        min=0.5,
+        max=200.0
+    )
+
+    min_radius: FloatProperty(
+        name="Min. Radius",
+        description="Minimum exclusion radius for stipples",
+        default=3.0,
+        min=0.5,
+        max=200.0
+    )
+
+    child_count: IntProperty(
+        name="Child Count",
+        description="Number of child stipples to create",
+        default=30,
+        min=1,
+        max=100
+    )
+
+    gamma_stippling: FloatProperty(
+        name="Luminance Gamma",
+        description="Gamma exponent for transforming luminance values",
+        default=1.0,
+        min=0.1,
+        max=10.0
+    )
+
+    max_stippled_luminance: FloatProperty(
+        name="Max. Stippled Luminance",
+        description="Maximum luminance value that will receive stippling",
+        default=1.0,
+        min=0.0,
+        max=10.0
+    )
+
+    # Scribble Settings
+    scribbling_enabled: BoolProperty(
+        name="Scribble",
+        description="Use stipples for scribbling",
+        default=False
+    )
+
+    initial_sub_sampling_rate: IntProperty(
+        name="Initial Sub-Sampling Rate",
+        description="Initial sub-sampling rate for scribbles",
+        default=50,
+        min=1,
+        max=100
+    )
+
+    min_remaining_point_share: FloatProperty(
+        name="Min. Remaining Point Share",
+        description="Minimum share of points to retain in scribbles",
+        default=0.01,
+        min=0.0,
+        max=1.0
+    )
+
+    depth_factor: FloatProperty(
+        name="Depth Factor",
+        description="Factor to adjust depth influence in scribbles",
+        default=100.0,
+        min=0.0,
+        max=1.0e6
+    )
+
+    line_simplification_error_scribbling: FloatProperty(
+        name="Max. Line Simplification Error [px^2]",
+        description="Maximum error allowed when simplifying scribble lines",
+        default=0.02,
+        min=0.0001,
         max=10.0
     )
 
@@ -277,26 +367,41 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.prop(hatch_props, "gp_stroke_distance")
         box.prop(hatch_props, "gp_stroke_radius")
 
+        # Technique selection
         box = layout.box()
-        box.label(text="Hatch Line Settings:")
-        box.prop(hatch_props, "d_sep")
-        box.prop(hatch_props, "d_sep_shadow_factor")
-        box.prop(hatch_props, "gamma_luminance")
-        box.prop(hatch_props, "d_test_factor")
-        box.prop(hatch_props, "d_step")
-        box.prop(hatch_props, "max_steps")
-        box.prop(hatch_props, "min_steps")
-        box.prop(hatch_props, "line_simplification_error")
-        box.prop(hatch_props, "max_depth_step")
-        box.prop(hatch_props, "max_accum_angle")
-        box.prop(hatch_props, "max_hatched_luminance")
-        box.prop(hatch_props, "crosshatching_enabled")
-        if hatch_props.crosshatching_enabled:
-            box.prop(hatch_props, "crossing_orientation_offset")
-            box.prop(hatch_props, "max_crosshatched_luminance")
+        box.label(text="Shading Settings:")
+        box.prop(hatch_props, "technique")
+        if hatch_props.technique == "HATCHING":
+            box.prop(hatch_props, "d_sep")
+            box.prop(hatch_props, "d_sep_shadow_factor")
+            box.prop(hatch_props, "gamma_hatching")
+            box.prop(hatch_props, "d_test_factor")
+            box.prop(hatch_props, "d_step")
+            box.prop(hatch_props, "max_steps")
+            box.prop(hatch_props, "min_steps")
+            box.prop(hatch_props, "line_simplification_error_hatching")
+            box.prop(hatch_props, "max_depth_step")
+            box.prop(hatch_props, "max_accum_angle")
+            box.prop(hatch_props, "max_hatched_luminance")
+            box.prop(hatch_props, "crosshatching_enabled")
+            if hatch_props.crosshatching_enabled:
+                box.prop(hatch_props, "crossing_orientation_offset")
+                box.prop(hatch_props, "max_crosshatched_luminance")
+        elif hatch_props.technique == "STIPPLING":
+            box.prop(hatch_props, "max_radius")
+            box.prop(hatch_props, "min_radius")
+            box.prop(hatch_props, "child_count")
+            box.prop(hatch_props, "gamma_stippling")
+            box.prop(hatch_props, "max_stippled_luminance")
+            box.prop(hatch_props, "scribbling_enabled")
+            if hatch_props.scribbling_enabled:
+                box.prop(hatch_props, "initial_sub_sampling_rate")
+                box.prop(hatch_props, "min_remaining_point_share")
+                box.prop(hatch_props, "depth_factor")
+                box.prop(hatch_props, "line_simplification_error_scribbling")
 
         layout.separator()
-        layout.operator("hatch.create_lines", text="Create Hatch Lines")
+        layout.operator("hatch.generate", text="Generate")
 
 
 classes = (

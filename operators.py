@@ -4,10 +4,10 @@ from mathutils import Vector
 from .screen_space import BlenderRenderEngine, BlenderScene, ShaderRenderEngine, PixelDataGrid, GreasePencilDrawing, flow_field_streamlines, streamlines_to_stroke_positions, visvalingam_whyatt
 
 
-class HATCH_OT_create_lines(bpy.types.Operator):
-    bl_idname = "hatch.create_lines"
-    bl_label = "Create Hatch Lines"
-    bl_description = "Create screen-space hatch lines with Grease Pencil"
+class HATCH_OT_generate(bpy.types.Operator):
+    bl_idname = "hatch.generate"
+    bl_label = "Generate artistic shading"
+    bl_description = "Create screen-space shading effects with Grease Pencil"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -121,7 +121,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                     seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
                     d_sep_max=hatch_props.d_sep,
                     d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
-                    gamma_luminance=hatch_props.gamma_luminance,
+                    gamma_luminance=hatch_props.gamma_hatching,
                     d_test_factor=hatch_props.d_test_factor,
                     d_step=hatch_props.d_step,
                     max_depth_step=hatch_props.max_depth_step,
@@ -134,7 +134,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
         print("Number of streamlines generated:", len(streamlines))
         print("Number of points in the streamlines:", sum(len(sl) for sl in streamlines))
-        streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error) for sl in streamlines]
+        streamlines = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error_hatching) for sl in streamlines]
         stroke_lengths = [len(sl) for sl in streamlines]
         print("Number of points in the streamlines after simplification:", sum(stroke_lengths))
         stroke_positions = streamlines_to_stroke_positions(
@@ -157,7 +157,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
 
 
 classes = (
-    HATCH_OT_create_lines,
+    HATCH_OT_generate,
 )
 
 def register():
