@@ -121,7 +121,7 @@ class HATCH_OT_create_lines(bpy.types.Operator):
                     seed_box_size=hatch_props.seed_box_size_factor * hatch_props.d_sep,
                     d_sep_max=hatch_props.d_sep,
                     d_sep_shadow_factor=hatch_props.d_sep_shadow_factor,
-                    shadow_gamma=hatch_props.shadow_gamma,
+                    gamma_luminance=hatch_props.gamma_luminance,
                     d_test_factor=hatch_props.d_test_factor,
                     d_step=hatch_props.d_step,
                     max_depth_step=hatch_props.max_depth_step,

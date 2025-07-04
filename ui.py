@@ -137,9 +137,9 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=1.0
     )
 
-    shadow_gamma: FloatProperty(
-        name="Shadow Gamma",
-        description="Gamma factor for shadows",
+    gamma_luminance: FloatProperty(
+        name="Luminance Gamma",
+        description="Gamma exponent for luminance values",
         default=1.0,
         min=0.1,
         max=10.0
@@ -281,7 +281,7 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.label(text="Hatch Line Settings:")
         box.prop(hatch_props, "d_sep")
         box.prop(hatch_props, "d_sep_shadow_factor")
-        box.prop(hatch_props, "shadow_gamma")
+        box.prop(hatch_props, "gamma_luminance")
         box.prop(hatch_props, "d_test_factor")
         box.prop(hatch_props, "d_step")
         box.prop(hatch_props, "max_steps")

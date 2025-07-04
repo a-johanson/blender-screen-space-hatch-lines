@@ -7,9 +7,9 @@ from .grid import PixelDataGrid
 from .point_registry import PointRegistry
 
 
-def d_sep_from_luminance(d_sep_max: float, d_sep_shadow_factor: float, shadow_gamma: float, luminance: float) -> float:
+def d_sep_from_luminance(d_sep_max: float, d_sep_shadow_factor: float, gamma_luminance: float, luminance: float) -> float:
     d_sep_min = d_sep_max * d_sep_shadow_factor
-    return d_sep_min + (d_sep_max - d_sep_min) * math.pow(luminance, shadow_gamma)
+    return d_sep_min + (d_sep_max - d_sep_min) * math.pow(luminance, gamma_luminance)
 
 def flow_field_streamline(
     grid: PixelDataGrid,
@@ -18,7 +18,7 @@ def flow_field_streamline(
     p_start: tuple[float, float],
     d_sep_max: float,
     d_sep_shadow_factor: float,
-    shadow_gamma: float,
+    gamma_luminance: float,
     d_test_factor: float,
     d_step: float,
     max_depth_step: float,
@@ -31,7 +31,7 @@ def flow_field_streamline(
     if gv_start is None or not gv_start.is_covered() or gv_start.luminance > max_hatched_luminance:
         return None
 
-    d_sep_start = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv_start.luminance)
+    d_sep_start = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, gamma_luminance, gv_start.luminance)
     if not point_registry.is_point_allowed(
         p_start, d_sep_start, d_test_factor * d_sep_start, start_from_streamline_id
     ):
@@ -60,7 +60,7 @@ def flow_field_streamline(
             new_dir = gv.direction
             dot = max(-1.0, min(1.0, next_dir[0]*new_dir[0] + next_dir[1]*new_dir[1]))
             accum_angle += math.acos(dot)
-            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.luminance)
+            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, gamma_luminance, gv.luminance)
             d_sep_l = d_test_factor * d_sep
             if (not gv.is_covered() or
                 accum_angle > accum_limit or
@@ -92,7 +92,7 @@ def flow_field_streamlines(
     seed_box_size: int,
     d_sep_max: float,
     d_sep_shadow_factor: float,
-    shadow_gamma: float,
+    gamma_luminance: float,
     d_test_factor: float,
     d_step: float,
     max_depth_step: float,
@@ -125,7 +125,7 @@ def flow_field_streamlines(
                 p_start=(sx,sy),
                 d_sep_max=d_sep_max,
                 d_sep_shadow_factor=d_sep_shadow_factor,
-                shadow_gamma=shadow_gamma,
+                gamma_luminance=gamma_luminance,
                 d_test_factor=d_test_factor,
                 d_step=d_step,
                 max_depth_step=max_depth_step,
@@ -144,7 +144,7 @@ def flow_field_streamlines(
         sid, sl = queue.popleft()
         for lp in sl:
             gv = grid.grid_value(lp[0], lp[1])
-            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, shadow_gamma, gv.luminance)
+            d_sep = d_sep_from_luminance(d_sep_max, d_sep_shadow_factor, gamma_luminance, gv.luminance)
             for sign in (-1.0, 1.0):
                 dir = gv.direction
                 new_seed = (
@@ -158,7 +158,7 @@ def flow_field_streamlines(
                     p_start=new_seed,
                     d_sep_max=d_sep_max,
                     d_sep_shadow_factor=d_sep_shadow_factor,
-                    shadow_gamma=shadow_gamma,
+                    gamma_luminance=gamma_luminance,
                     d_test_factor=d_test_factor,
                     d_step=d_step,
                     max_depth_step=max_depth_step,
