@@ -188,7 +188,7 @@ class HATCH_OT_generate(bpy.types.Operator):
                             depth_factor=hatch_props.depth_factor,
                             stipple_stroke_length=hatch_props.stroke_length
                         ))
-                scribbles = [catmull_rom_interpolate(sl, points_per_segment=hatch_props.bezier_points_per_segment) for sl in scribbles]
+                scribbles = [catmull_rom_interpolate(sl, points_per_segment=hatch_props.bezier_points_per_segment) for sl in scribbles if len(sl) >= 4]
                 print("Number of points in the scribble lines:", sum(len(sl) for sl in scribbles))
                 scribbles = [visvalingam_whyatt(sl, max_area=hatch_props.line_simplification_error_scribbling) for sl in scribbles]
                 print("Number of points after simplification:", sum(len(sl) for sl in scribbles))
