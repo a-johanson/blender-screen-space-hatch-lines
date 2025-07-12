@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from collections import deque
 import math
 import random
@@ -6,6 +7,13 @@ import numpy as np
 from .grid import PixelDataGrid
 from .point_registry import PointRegistry
 
+
+@dataclass
+class Stipple:
+    x: float
+    y: float
+    depth: float
+    direction: tuple[float, float]  # (cos, sin) of the orientation angle
 
 def radius_from_luminance(luminance: float, r_min: float, r_max: float, gamma: float) -> float:
     return r_min + (r_max - r_min) * pow(luminance, 0.5 * gamma)
@@ -19,12 +27,12 @@ def poisson_disk_stipples(
         gamma: float,
         max_stippled_luminance: float = 1.0,
         child_count: int = 100
-    ) -> list[tuple[float, float, float]]: # store depth in the third element
+    ) -> list[Stipple]:
     width = grid.width
     height = grid.height
     registry = PointRegistry(width, height, r_max)
     queue: deque = deque()
-    stipples: list[tuple[float, float]] = []
+    stipples: list[Stipple] = []
 
     random.seed(rng_seed)
 
@@ -46,7 +54,7 @@ def poisson_disk_stipples(
                 registry.is_point_allowed(p, r, r, 0)):
                 pid = registry.add_point(p)
                 queue.append((pid, r, p))
-                stipples.append((p[0], p[1], gv.depth))
+                stipples.append(Stipple(p[0], p[1], gv.depth, gv.direction))
 
 
     # Grow from queue
@@ -66,7 +74,7 @@ def poisson_disk_stipples(
                 registry.is_point_allowed(p_candidate, r_candidate, 0.0, id_center)):
                 pid = registry.add_point(p_candidate)
                 queue.append((pid, r_candidate, p_candidate))
-                stipples.append((p_candidate[0], p_candidate[1], gv.depth))
+                stipples.append(Stipple(p_candidate[0], p_candidate[1], gv.depth, gv.direction))
 
     return stipples
 
@@ -76,13 +84,33 @@ def stipples_to_stroke_positions(
     drawing_origin: tuple[float, float, float],
     drawing_x_axis: tuple[float, float, float],
     drawing_y_axis: tuple[float, float, float],
-    stipples: list[tuple[float, float, float]]
+    stipples: list[Stipple],
+    stroke_length: float = 0.0
 ) -> np.ndarray:
     width_inv = 1.0 / width
     height_inv = 1.0 / height
 
-    return np.array([(
-            drawing_origin[0] + (x_coord := (p[0]*width_inv)) * drawing_x_axis[0] + (y_coord := (p[1]*height_inv)) * drawing_y_axis[0],
+    def project_point(x: float, y: float) -> tuple[float, float, float]:
+        x_coord = x * width_inv
+        y_coord = y * height_inv
+        return (
+            drawing_origin[0] + x_coord * drawing_x_axis[0] + y_coord * drawing_y_axis[0],
             drawing_origin[1] + x_coord * drawing_x_axis[1] + y_coord * drawing_y_axis[1],
             drawing_origin[2] + x_coord * drawing_x_axis[2] + y_coord * drawing_y_axis[2]
-        ) for p in stipples], dtype=np.float32)
+        )
+
+    positions = []
+    for s in stipples:
+        if stroke_length > 0.0:
+            positions.append(project_point(
+                s.x - 0.5 * stroke_length * s.direction[0],
+                s.y - 0.5 * stroke_length * s.direction[1]
+            ))
+            positions.append(project_point(
+                s.x + 0.5 * stroke_length * s.direction[0],
+                s.y + 0.5 * stroke_length * s.direction[1]
+            ))
+        else:
+            positions.append(project_point(s.x, s.y))
+
+    return np.array(positions, dtype=np.float32)

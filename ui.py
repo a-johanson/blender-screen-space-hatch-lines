@@ -282,6 +282,14 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=10.0
     )
 
+    stroke_length: FloatProperty(
+        name="Stroke Length [px]",
+        description="Stroke length for stipples (0.0 for dots)",
+        default=0.0,
+        min=0.0,
+        max=100.0
+    )
+
     # Scribble Settings
     scribbling_enabled: BoolProperty(
         name="Scribble",
@@ -409,6 +417,7 @@ class HATCH_PT_panel(bpy.types.Panel):
             box.prop(hatch_props, "child_count")
             box.prop(hatch_props, "gamma_stippling")
             box.prop(hatch_props, "max_stippled_luminance")
+            box.prop(hatch_props, "stroke_length")
             box.prop(hatch_props, "scribbling_enabled")
             if hatch_props.scribbling_enabled:
                 box.prop(hatch_props, "scribbling_iterations")

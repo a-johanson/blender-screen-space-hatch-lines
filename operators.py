@@ -153,7 +153,7 @@ class HATCH_OT_generate(bpy.types.Operator):
             )
         elif hatch_props.technique == "STIPPLING":
             print("Using stippling and scribbling...")
-            grid = render_pixel_grid(orientation_offset=0.0)
+            grid = render_pixel_grid(hatch_props.orientation_offset)
 
             stipples = poisson_disk_stipples(
                 grid,
@@ -168,14 +168,15 @@ class HATCH_OT_generate(bpy.types.Operator):
             print(f"Generated {len(stipples)} stipples")
 
             if not hatch_props.scribbling_enabled:
-                stroke_lengths = [1] * len(stipples)
+                stroke_lengths = [2 if hatch_props.stroke_length > 0.0 else 1] * len(stipples)
                 stroke_positions = stipples_to_stroke_positions(
                     width,
                     height,
                     frame_origin.to_tuple(),
                     frame_x_axis.to_tuple(),
                     frame_y_axis.to_tuple(),
-                    stipples
+                    stipples,
+                    hatch_props.stroke_length
                 )
             else:
                 scribbles = []
@@ -184,7 +185,8 @@ class HATCH_OT_generate(bpy.types.Operator):
                             stipples,
                             initial_sampling_rate=hatch_props.initial_sub_sampling_rate,
                             min_remaining_point_fraction=hatch_props.min_remaining_point_share,
-                            depth_factor=hatch_props.depth_factor
+                            depth_factor=hatch_props.depth_factor,
+                            stipple_stroke_length=hatch_props.stroke_length
                         ))
                 scribbles = [catmull_rom_interpolate(sl, points_per_segment=hatch_props.bezier_points_per_segment) for sl in scribbles]
                 print("Number of points in the scribble lines:", sum(len(sl) for sl in scribbles))
