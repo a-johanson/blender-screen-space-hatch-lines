@@ -102,14 +102,10 @@ def stipples_to_stroke_positions(
     positions = []
     for s in stipples:
         if stroke_length > 0.0:
-            positions.append(project_point(
-                s.x - 0.5 * stroke_length * s.direction[0],
-                s.y - 0.5 * stroke_length * s.direction[1]
-            ))
-            positions.append(project_point(
-                s.x + 0.5 * stroke_length * s.direction[0],
-                s.y + 0.5 * stroke_length * s.direction[1]
-            ))
+            dx = 0.5 * stroke_length * s.direction[0]
+            dy = 0.5 * stroke_length * s.direction[1]
+            positions.append(project_point(s.x - dx, s.y - dy))
+            positions.append(project_point(s.x + dx, s.y + dy))
         else:
             positions.append(project_point(s.x, s.y))
 

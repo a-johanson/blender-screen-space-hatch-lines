@@ -50,10 +50,10 @@ def scribbles_from_stipples(
 
     def stipple_to_point(stipple: Stipple) -> tuple[float, float]:
         if stipple_stroke_length > 0.0:
-            t = random.random() - 0.5
+            t = (random.random() - 0.5) * stipple_stroke_length
             return (
-                stipple.x + t * stipple_stroke_length * stipple.direction[0],
-                stipple.y + t * stipple_stroke_length * stipple.direction[1]
+                stipple.x + t * stipple.direction[0],
+                stipple.y + t * stipple.direction[1]
             )
         else:
             return (stipple.x, stipple.y)
