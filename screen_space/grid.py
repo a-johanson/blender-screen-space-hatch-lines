@@ -1,6 +1,4 @@
-from collections.abc import Sequence
 from dataclasses import dataclass
-import math
 
 import numpy as np
 

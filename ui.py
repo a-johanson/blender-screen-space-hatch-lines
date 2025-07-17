@@ -16,14 +16,15 @@ def get_gp_layers(props, _context):
 
 
 class HatchLineProperties(bpy.types.PropertyGroup):
-    render_engine: EnumProperty(
-        name="Render Engine",
-        description="Select which rendering engine to use",
+    # General Settings
+    technique: EnumProperty(
+        name="Technique",
+        description="Select which technique to use",
         items=[
-            ("BLENDER", "Blender", "Use Blender's render engine"),
-            ("SHADER", "GLSL Shader", "Use shader-based rendering")
+            ("HATCHING", "Hatching", "Use hatching technique"),
+            ("STIPPLING", "Stippling & Scribbling", "Use stippling and scribbling technique")
         ],
-        default="SHADER"
+        default="HATCHING"
     )
 
     rng_seed: IntProperty(
@@ -41,78 +42,37 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=100.0
     )
 
-    d_sep: FloatProperty(
-        name="Separation Distance [px]",
-        description="Distance between hatch lines",
-        default=10.0,
-        min=0.1,
-        max=250.0
-    )
-
-    d_sep_shadow_factor: FloatProperty(
-        name="Separation Shadow Factor",
-        description="Factor to reduce the separation distance for shadows",
-        default=1.0,
-        min=0.01,
-        max=1.0
-    )
-
-    shadow_gamma: FloatProperty(
-        name="Shadow Gamma",
-        description="Gamma factor for shadows",
-        default=1.0,
-        min=0.1,
-        max=10.0
-    )
-
-    d_test_factor: FloatProperty(
-        name="Separation Reduction Factor",
-        description="Factor to reduce the separation distance for testing",
-        default=0.75,
-        min=0.01,
-        max=1.0
-    )
-
-    d_step: FloatProperty(
-        name="Step Size [px]",
-        description="Step size for generating hatch lines",
-        default=1.0,
-        min=0.1,
-        max=25.0
-    )
-
-    max_depth_step: FloatProperty(
-        name="Max Depth Step [world units]",
-        description="Maximum depth step for hatch lines",
-        default=0.05,
-        min=0.0001,
-        max=10.0
-    )
-
-    max_accum_angle: FloatProperty(
-        name="Max Accumulated angle [rad]",
-        description="Maximum accumulated angle for hatch lines",
-        default=5.0,
-        min=0.1,
-        max=10.0
-    )
-
-    max_steps: IntProperty(
-        name="Max Steps",
-        description="Maximum number of steps per hatch line",
-        default=100,
-        min=1,
+    render_resolution: IntProperty(
+        name="Render Resolution",
+        description="Resolution of the longest render dimension for generating hatch lines",
+        default=1000,
+        min=100,
         max=10000
     )
 
-    min_steps: IntProperty(
-        name="Min Steps",
-        description="Minimum number of steps per hatch line",
-        default=10,
-        min=1,
-        max=10000
+    render_engine: EnumProperty(
+        name="Render Engine",
+        description="Select which rendering engine to use",
+        items=[
+            ("BLENDER", "Blender", "Use Blender's render engine"),
+            ("SHADER", "GLSL Shader", "Use shader-based rendering")
+        ],
+        default="SHADER"
     )
 
+    clip_luminance: BoolProperty(
+        name="Clip Luminance",
+        description="Clip luminance values to the range [0, 1]",
+        default=False
+    )
+
+    normalize_luminance: BoolProperty(
+        name="Normalize Luminance",
+        description="Normalize luminance values to the range [0, 1]",
+        default=False
+    )
+
+    # Lighting and Orientation
     input_light: PointerProperty(
         type=bpy.types.Object,
         name="Empty or Light",
@@ -134,8 +94,125 @@ class HatchLineProperties(bpy.types.PropertyGroup):
         max=1.57079632679 
     )
 
+    # Target Grease Pencil
+    target_gp: PointerProperty(
+        type=bpy.types.Object,
+        name="Target Grease Pencil",
+        description="Grease Pencil object to add hatch lines to (v3 only)",
+        poll=lambda _props, obj: obj.type == "GREASEPENCIL"
+    )
+
+    target_gp_layer: EnumProperty(
+        name="Target Layer",
+        description="Grease Pencil layer to add hatch lines to",
+        items=get_gp_layers
+    )
+
+    clear_layer: BoolProperty(
+        name="Clear Layer",
+        description="Clear the target layer before adding new hatch lines",
+        default=True
+    )
+
+    gp_stroke_distance: FloatProperty(
+        name="Stroke Distance [world units]",
+        description="Distance from the camera at which the grease pencil strokes are drawn",
+        default=1.0,
+        min=0.5,
+        max=10.0
+    )
+
+    gp_stroke_radius: FloatProperty(
+        name="Stroke Radius [world units]",
+        description="Radius of the grease pencil strokes",
+        default=0.0005,
+        min=0.0005,
+        max=0.05
+    )
+
+    # Hatch Line Settings
+    d_sep: FloatProperty(
+        name="Separation Distance [px]",
+        description="Distance between hatch lines",
+        default=10.0,
+        min=0.1,
+        max=250.0
+    )
+
+    d_sep_shadow_factor: FloatProperty(
+        name="Separation Shadow Factor",
+        description="Factor to reduce the separation distance for shadows",
+        default=1.0,
+        min=0.01,
+        max=1.0
+    )
+
+    gamma_hatching: FloatProperty(
+        name="Luminance Gamma",
+        description="Gamma exponent for transforming luminance values",
+        default=1.0,
+        min=0.1,
+        max=10.0
+    )
+
+    d_test_factor: FloatProperty(
+        name="Separation Reduction Factor",
+        description="Factor to reduce the separation distance for testing",
+        default=0.75,
+        min=0.01,
+        max=1.0
+    )
+
+    d_step: FloatProperty(
+        name="Step Size [px]",
+        description="Step size for generating hatch lines",
+        default=1.0,
+        min=0.1,
+        max=25.0
+    )
+
+    max_steps: IntProperty(
+        name="Max. Steps",
+        description="Maximum number of steps per hatch line",
+        default=100,
+        min=1,
+        max=10000
+    )
+
+    min_steps: IntProperty(
+        name="Min. Steps",
+        description="Minimum number of steps per hatch line",
+        default=10,
+        min=1,
+        max=10000
+    )
+
+    line_simplification_error_hatching: FloatProperty(
+        name="Max. Line Simplification Error [px^2]",
+        description="Maximum error allowed when simplifying hatch lines",
+        default=0.02,
+        min=0.0001,
+        max=10.0
+    )
+
+    max_depth_step: FloatProperty(
+        name="Max. Depth Step [world units]",
+        description="Maximum depth step for hatch lines",
+        default=0.05,
+        min=0.0001,
+        max=10.0
+    )
+
+    max_accum_angle: FloatProperty(
+        name="Max. Accumulated angle [rad]",
+        description="Maximum accumulated angle for hatch lines",
+        default=5.0,
+        min=0.1,
+        max=10.0
+    )
+
     max_hatched_luminance: FloatProperty(
-        name="Maximum Hatched Luminance",
+        name="Max. Hatched Luminance",
         description="Maximum luminance value that will receive hatching",
         default=10.0,
         min=0.0,
@@ -157,69 +234,124 @@ class HatchLineProperties(bpy.types.PropertyGroup):
     )
 
     max_crosshatched_luminance: FloatProperty(
-        name="Maximum Crosshatched Luminance",
+        name="Max. Crosshatched Luminance",
         description="Maximum luminance value that will receive crosshatching",
         default=10.0,
         min=0.0,
         max=10.0
     )
 
-    target_gp: PointerProperty(
-        type=bpy.types.Object,
-        name="Target Grease Pencil",
-        description="Grease Pencil object to add hatch lines to (v3 only)",
-        poll=lambda _props, obj: obj.type == "GREASEPENCIL"
-    )
-
-    target_gp_layer: EnumProperty(
-        name="Target Layer",
-        description="Grease Pencil layer to add hatch lines to",
-        items=get_gp_layers
-    )
-
-    gp_stroke_radius: FloatProperty(
-        name="Stroke Radius",
-        description="Radius of the grease pencil strokes",
-        default=0.0005,
-        min=0.0005,
-        max=0.05
-    )
-
-    gp_stroke_distance: FloatProperty(
-        name="Stroke Distance",
-        description="Distance from the camera at which the grease pencil strokes are drawn",
-        default=1.0,
+    # Stipple Settings
+    max_radius: FloatProperty(
+        name="Max. Radius [px]",
+        description="Maximum exclusion radius for stipples",
+        default=15.0,
         min=0.5,
+        max=200.0
+    )
+
+    min_radius: FloatProperty(
+        name="Min. Radius [px]",
+        description="Minimum exclusion radius for stipples",
+        default=3.0,
+        min=0.5,
+        max=200.0
+    )
+
+    child_count: IntProperty(
+        name="Child Count",
+        description="Number of child stipples to create",
+        default=30,
+        min=1,
+        max=100
+    )
+
+    gamma_stippling: FloatProperty(
+        name="Luminance Gamma",
+        description="Gamma exponent for transforming luminance values",
+        default=1.0,
+        min=0.1,
         max=10.0
     )
 
-    line_simplification_error: FloatProperty(
+    max_stippled_luminance: FloatProperty(
+        name="Max. Stippled Luminance",
+        description="Maximum luminance value that will receive stippling",
+        default=1.0,
+        min=0.0,
+        max=10.0
+    )
+
+    stroke_length: FloatProperty(
+        name="Stroke Length [px]",
+        description="Stroke length for stipples (0.0 for dots)",
+        default=0.0,
+        min=0.0,
+        max=100.0
+    )
+
+    # Scribble Settings
+    scribbling_enabled: BoolProperty(
+        name="Scribble",
+        description="Use stipples for scribbling",
+        default=False
+    )
+
+    scribbling_iterations: IntProperty(
+        name="Scribbling Iterations",
+        description="Number of iterations for scribbling",
+        default=2,
+        min=1,
+        max=25
+    )
+
+    initial_sub_sampling_rate: IntProperty(
+        name="Initial Sub-Sampling Rate",
+        description="Initial sub-sampling rate for scribbles",
+        default=50,
+        min=1,
+        max=100
+    )
+
+    min_remaining_point_share: FloatProperty(
+        name="Min. Remaining Point Share",
+        description="Minimum share of points to retain in scribbles",
+        default=0.01,
+        min=0.0,
+        max=1.0
+    )
+
+    depth_factor: FloatProperty(
+        name="Depth Factor",
+        description="Factor to adjust depth influence in scribbles",
+        default=100.0,
+        min=0.0,
+        max=1.0e6
+    )
+
+    bezier_points_per_segment: IntProperty(
+        name="Bezier Points per Segment",
+        description="Number of points per segment for Catmull-Rom interpolation",
+        default=10,
+        min=2,
+        max=100
+    )
+
+    line_simplification_error_scribbling: FloatProperty(
         name="Max. Line Simplification Error [px^2]",
-        description="Maximum error allowed when simplifying hatch lines",
-        default=0.02,
+        description="Maximum error allowed when simplifying scribble lines",
+        default=0.05,
         min=0.0001,
         max=10.0
     )
 
-    clip_luminance: BoolProperty(
-        name="Clip Luminance",
-        description="Clip luminance values to the range [0, 1]",
-        default=False
-    )
-
-    normalize_luminance: BoolProperty(
-        name="Normalize Luminance",
-        description="Normalize luminance values to the range [0, 1]",
-        default=False
-    )
-
 
 class HATCH_PT_panel(bpy.types.Panel):
-    bl_label = "Hatch Lines"
+    bl_label = "Screen-Space Shading"
     bl_idname = "HATCH_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Hatch Lines"
+    bl_category = "Screen-Space Shading"
 
     def draw(self, context):
         layout = self.layout
@@ -230,33 +362,18 @@ class HATCH_PT_panel(bpy.types.Panel):
         box.label(text="General Settings:")
         box.prop(hatch_props, "rng_seed")
         box.prop(hatch_props, "seed_box_size_factor")
-
-        box = layout.box()
-        box.label(text="Distance and Step Settings:")
-        box.prop(hatch_props, "d_sep")
-        box.prop(hatch_props, "d_sep_shadow_factor")
-        box.prop(hatch_props, "shadow_gamma")
-        box.prop(hatch_props, "d_test_factor")
-        box.prop(hatch_props, "d_step")
-        box.prop(hatch_props, "line_simplification_error")
-
-        box = layout.box()
-        box.label(text="Line Constraints:")
-        box.prop(hatch_props, "max_depth_step")
-        box.prop(hatch_props, "max_accum_angle")
-        box.prop(hatch_props, "max_steps")
-        box.prop(hatch_props, "min_steps")
+        box.prop(hatch_props, "render_resolution")
+        box.prop(hatch_props, "render_engine")
+        if hatch_props.render_engine == "BLENDER":
+            box.label(text="Warning: Will overwrite compositor nodes.", icon="ERROR")
+            box.prop(hatch_props, "clip_luminance")
+            box.prop(hatch_props, "normalize_luminance")
 
         box = layout.box()
         box.label(text="Lighting and Orientation:")
         box.prop(hatch_props, "input_light")
         box.prop(hatch_props, "is_directional_light")
         box.prop(hatch_props, "orientation_offset")
-        box.prop(hatch_props, "max_hatched_luminance")
-        box.prop(hatch_props, "crosshatching_enabled")
-        if hatch_props.crosshatching_enabled:
-            box.prop(hatch_props, "crossing_orientation_offset")
-            box.prop(hatch_props, "max_crosshatched_luminance")
 
         box = layout.box()
         box.label(text="Target Grease Pencil:")
@@ -268,20 +385,50 @@ class HATCH_PT_panel(bpy.types.Panel):
             box.prop(hatch_props, "target_gp_layer")
             if not has_layers:
                 box.label(text="No layers found in this Grease Pencil", icon="ERROR")
+            else:
+                box.prop(hatch_props, "clear_layer")
 
-        box.prop(hatch_props, "gp_stroke_radius")
         box.prop(hatch_props, "gp_stroke_distance")
+        box.prop(hatch_props, "gp_stroke_radius")
 
+        # Technique selection
         box = layout.box()
-        box.label(text="Render Engine:")
-        box.prop(hatch_props, "render_engine", text="")
-        if hatch_props.render_engine == "BLENDER":
-            box.label(text="Warning: Will overwrite compositor nodes.", icon="ERROR")
-            box.prop(hatch_props, "clip_luminance")
-            box.prop(hatch_props, "normalize_luminance")
+        box.label(text="Shading Settings:")
+        box.prop(hatch_props, "technique")
+        if hatch_props.technique == "HATCHING":
+            box.prop(hatch_props, "d_sep")
+            box.prop(hatch_props, "d_sep_shadow_factor")
+            box.prop(hatch_props, "gamma_hatching")
+            box.prop(hatch_props, "d_test_factor")
+            box.prop(hatch_props, "d_step")
+            box.prop(hatch_props, "max_steps")
+            box.prop(hatch_props, "min_steps")
+            box.prop(hatch_props, "line_simplification_error_hatching")
+            box.prop(hatch_props, "max_depth_step")
+            box.prop(hatch_props, "max_accum_angle")
+            box.prop(hatch_props, "max_hatched_luminance")
+            box.prop(hatch_props, "crosshatching_enabled")
+            if hatch_props.crosshatching_enabled:
+                box.prop(hatch_props, "crossing_orientation_offset")
+                box.prop(hatch_props, "max_crosshatched_luminance")
+        elif hatch_props.technique == "STIPPLING":
+            box.prop(hatch_props, "max_radius")
+            box.prop(hatch_props, "min_radius")
+            box.prop(hatch_props, "child_count")
+            box.prop(hatch_props, "gamma_stippling")
+            box.prop(hatch_props, "max_stippled_luminance")
+            box.prop(hatch_props, "stroke_length")
+            box.prop(hatch_props, "scribbling_enabled")
+            if hatch_props.scribbling_enabled:
+                box.prop(hatch_props, "scribbling_iterations")
+                box.prop(hatch_props, "initial_sub_sampling_rate")
+                box.prop(hatch_props, "min_remaining_point_share")
+                box.prop(hatch_props, "depth_factor")
+                box.prop(hatch_props, "bezier_points_per_segment")
+                box.prop(hatch_props, "line_simplification_error_scribbling")
 
         layout.separator()
-        layout.operator("hatch.create_lines", text="Create Hatch Lines")
+        layout.operator("hatch.generate", text="Generate")
 
 
 classes = (
