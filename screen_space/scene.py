@@ -15,9 +15,9 @@ class MeshTriangles:
 class BlenderScene:
     def __init__(self, light_obj: bpy.types.Object):
         self.camera = bpy.context.scene.camera
-        assert self.camera is not None, f"No active camera found in the scene"
+        assert self.camera is not None, "No active camera found in the scene"
         self.light = light_obj
-        assert self.light.type in ["EMPTY", "LIGHT"], f"Light object is not an empty or a light"
+        assert self.light.type in ["EMPTY", "LIGHT"], "Light object is not an empty or a light"
 
     def render_resolution(self) -> tuple[int, int]:
         render = bpy.context.scene.render
